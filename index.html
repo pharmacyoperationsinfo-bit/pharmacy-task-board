@@ -111,7 +111,7 @@
   th.sortable:hover{color:var(--ink);}
   .count-cell{font-variant-numeric:tabular-nums; font-weight:600;}
   .avatar{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
-    font-size:10.5px;font-weight:700;color:#fff;background:var(--accent); flex:0 0 24px;}
+    font-size:10.5px;font-weight:700;color:#fff;background:var(--accent); flex:none; aspect-ratio:1/1;}
   .who{display:inline-flex;align-items:center;gap:7px;}
   .who .role{color:var(--muted); font-size:11.5px;}
 
@@ -228,6 +228,15 @@
     border:1.5px solid var(--line); font-size:12px; font-weight:600; color:var(--ink-2); background:var(--surface);}
   .quad-picker button.sel{background:var(--surface-2); border-color:var(--ink); color:var(--ink);}
   textarea.f-desc{width:100%; min-height:64px; border:1px solid var(--line); border-radius:6px; background:var(--page); padding:8px 10px; font-size:13px; resize:vertical; margin-bottom:10px;}
+  .note-tools{display:flex; gap:4px; margin-bottom:0; border:1px solid var(--line); border-bottom:none; border-radius:6px 6px 0 0; background:var(--surface-2); padding:5px 7px;}
+  .note-tools button{padding:2px 9px; border-radius:5px; font-size:12.5px; color:var(--ink-2);}
+  .note-tools button:hover{background:rgba(11,11,11,0.07); color:var(--ink);}
+  .f-desc.rich{min-height:160px; max-height:340px; overflow-y:auto; border:1px solid var(--line); border-radius:0 0 6px 6px;
+    background:var(--page); padding:10px 12px; font-size:13px; margin-bottom:10px; outline:none;}
+  .f-desc.rich:focus{border-color:var(--accent);}
+  .f-desc.rich:empty::before{content:attr(data-placeholder); color:var(--muted); pointer-events:none;}
+  .f-desc.rich ul,.f-desc.rich ol{padding-left:22px; margin:4px 0;}
+  .f-desc.rich img{max-width:100%; border-radius:6px;}
   .sub-block{border:1px solid var(--line); border-radius:8px; padding:9px 12px; margin-bottom:10px; background:var(--page);}
   .sub-block .sb-head{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; display:flex; align-items:center;}
   .sb-head .prog{margin-left:auto; text-transform:none; letter-spacing:0; font-weight:600;}
@@ -248,6 +257,12 @@
   .ph-item .rm{position:absolute; top:-6px; right:-6px; margin:0; background:var(--surface); border:1px solid var(--line); border-radius:50%; width:20px; height:20px; line-height:1; display:flex; align-items:center; justify-content:center;}
   .ph-add{width:64px; height:64px; border:1.5px dashed var(--line); border-radius:7px; color:var(--muted); font-size:22px; display:flex; align-items:center; justify-content:center;}
   .ph-add:hover{border-color:var(--muted); color:var(--ink);}
+  .file-chip{display:inline-flex; align-items:center; gap:5px; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    background:var(--surface); border:1px solid var(--line); border-radius:7px; padding:6px 10px; font-size:12px; color:var(--ink-2); text-decoration:none; cursor:pointer;}
+  .file-chip:hover{border-color:var(--muted); color:var(--ink);}
+  .ph-item.file{display:flex; align-items:center;}
+  .attach-hint{font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.5;}
+  .side-panel.dropping{outline:2px dashed var(--accent); outline-offset:-6px;}
   .m-meta{font-size:11.5px; color:var(--muted);}
 
   /* ---------- Modals & lightbox ---------- */
@@ -349,7 +364,7 @@
 <!-- Task side panel -->
 <div class="panel-wrap" id="taskPanel">
   <div class="panel-scrim" id="taskScrim"></div>
-  <div class="side-panel">
+  <div class="side-panel" id="spBox">
     <div class="sp-head"><span class="m-meta" id="mMeta"></span><div class="spacer"></div>
       <button class="icon-btn" id="mClose" title="Close (Esc)" style="font-size:18px;">×</button></div>
     <div class="sp-body">
@@ -361,11 +376,16 @@
         <select id="mRec"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
       <div class="frow"><label>Urgency</label><span id="mUrgency"></span>
         <button class="btn ghost tiny" id="mComplete" type="button"></button></div>
-      <div class="frow"><label>Quadrant</label><div class="quad-picker" id="mQuad"></div></div>
-      <div class="frow"><label>Assign to</label><select id="mEmp"><option value="">— Unassigned —</option></select>
-        <select id="mSite"><option value="">No site</option></select></div>
-      <div class="frow"><label>Waiting on</label><input type="text" id="mWait" style="flex:1;" placeholder="e.g. wholesaler, accountant, NHS mail… (why it’s stuck)"></div>
-      <textarea class="f-desc" id="mDesc" style="min-height:140px;" placeholder="Notes / description — instructions, details…"></textarea>
+      <div class="frow"><label>Assign to</label><select id="mEmp" style="flex:1;"><option value="">— Unassigned —</option></select></div>
+      <div class="note-tools" id="noteTools">
+        <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+        <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+        <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
+        <button type="button" data-cmd="insertUnorderedList" title="Bullet list">•&nbsp;List</button>
+        <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.&nbsp;List</button>
+        <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+      </div>
+      <div class="f-desc rich" id="mDesc" contenteditable="true" data-placeholder="Notes / description — type here. Paste an image, file or link straight into this box and it attaches below…"></div>
       </div>
       <div>
       <div class="sub-block">
@@ -374,14 +394,10 @@
         <div class="sub-add"><input id="mClNew" placeholder="Add a step and press Enter…"></div>
       </div>
       <div class="sub-block">
-        <div class="sb-head">Photos</div>
+        <div class="sb-head">Attachments</div>
         <div class="ph-grid" id="mPhotos"></div>
-        <input type="file" id="phFile" accept="image/*" multiple style="display:none;">
-      </div>
-      <div class="sub-block">
-        <div class="sb-head">Links</div>
-        <div id="mLinks"></div>
-        <div class="sub-add"><input id="mLkNew" placeholder="Paste a link (SOP, doc, sheet…) and press Enter"></div>
+        <div class="attach-hint">📋 Copy any image or file and just <b>paste (Cmd/Ctrl+V)</b> — or drag &amp; drop it — anywhere in this window and it attaches instantly. Web links pasted in the notes attach themselves too.</div>
+        <input type="file" id="phFile" multiple style="display:none;">
       </div>
       </div>
       </div>
@@ -664,8 +680,9 @@ function cardHTML(t, opts){
       ${cl.length?`<span class="badge">☑ ${done}/${cl.length}</span>`:""}
       ${t.recurrence && t.recurrence!=="none"?`<span class="badge" title="Repeats ${t.recurrence}">↻</span>`:""}
       ${(t.links||[]).length?`<span class="badge">🔗 ${(t.links||[]).length}</span>`:""}
+      ${imgs.filter(p=>!isImg(p)).length?`<span class="badge">📎 ${imgs.filter(p=>!isImg(p)).length}</span>`:""}
     </div>
-    ${imgs.length?`<div class="c-thumbs">${imgs.slice(0,5).map((p,ix)=>`<img src="${esc(photoUrl(p))}" data-lb="${t.id}:${ix}" alt="photo" loading="lazy">`).join("")}${imgs.length>5?`<span class="badge">+${imgs.length-5}</span>`:""}</div>`:""}
+    ${imgs.filter(isImg).length?`<div class="c-thumbs">${imgs.filter(isImg).slice(0,5).map((p,ix)=>`<img src="${esc(photoUrl(p))}" data-lb="${t.id}:${ix}" alt="photo" loading="lazy">`).join("")}${imgs.filter(isImg).length>5?`<span class="badge">+${imgs.filter(isImg).length-5}</span>`:""}</div>`:""}
   </div>`;
 }
 
@@ -1023,10 +1040,30 @@ function fillSelects(){
   $("meSelect").innerHTML = `<option value="">— choose your name —</option>`+opts; $("meSelect").value=keepMe;
   $("rEmp").innerHTML = opts; if(keepR) $("rEmp").value=keepR;
   const sopts = sites.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
-  const keepFS=$("fSite").value, keepMS=$("mSite").value;
+  const keepFS=$("fSite").value;
   $("fSite").innerHTML = `<option value="">All sites</option>`+sopts; $("fSite").value=keepFS;
-  $("mSite").innerHTML = `<option value="">No site</option>`+sopts; $("mSite").value=keepMS;
 }
+function sanitizeHtml(html){
+  const div=document.createElement("div"); div.innerHTML=html;
+  div.querySelectorAll("script,style,iframe,object,embed,link,meta,form,input,button").forEach(n=>n.remove());
+  div.querySelectorAll("*").forEach(el=>{
+    [...el.attributes].forEach(a=>{
+      if(/^on/i.test(a.name)) el.removeAttribute(a.name);
+      else if(/^(href|src)$/i.test(a.name) && /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
+    });
+  });
+  return div.innerHTML;
+}
+function setNotes(desc){
+  const el=$("mDesc");
+  if (!desc){ el.innerHTML=""; return; }
+  if (/<[a-z][\s\S]*>/i.test(desc)) el.innerHTML = sanitizeHtml(desc);
+  else el.innerHTML = esc(desc).replace(/\n/g,"<br>");
+}
+$("noteTools").querySelectorAll("button").forEach(b=>{
+  b.onmousedown = ev => ev.preventDefault(); // keep focus in the notes box
+  b.onclick = () => { $("mDesc").focus(); document.execCommand(b.dataset.cmd, false, null); };
+});
 $("meSelect").addEventListener("change", e=>{ me=e.target.value; location.hash = me? "me="+me : ""; });
 
 function openTask(id, preset){
@@ -1041,14 +1078,12 @@ function openTask(id, preset){
   if (!Array.isArray(editing.images)) editing.images=[];
   $("mTitle").value = editing.title||"";
   $("mEmp").value = editing.employee_id||"";
-  $("mSite").value = editing.site||"";
   $("mDue").value = editing.due_date||"";
   $("mRec").value = editing.recurrence||"none";
-  $("mWait").value = editing.waiting_on||"";
-  $("mDesc").value = editing.description||"";
+  setNotes(editing.description||"");
   $("mDelete").style.display = t? "" : "none";
   $("mMeta").textContent = t? ("Created "+fmtWhen(t.created_at)+(t.touched_by?` · last touched by ${t.touched_by}`:"")) : "New task";
-  renderUrgencyPreview(); renderQuadPicker(); renderChecklist(); renderLinks(); renderPhotos();
+  renderUrgencyPreview(); renderChecklist(); renderPhotos();
   $("taskPanel").classList.add("open");
   $("mTitle").focus();
 }
@@ -1062,12 +1097,6 @@ function renderUrgencyPreview(){
 }
 $("mDue").addEventListener("input", renderUrgencyPreview);
 $("mComplete").onclick=()=>{ if(!editing) return; editing.status = editing.status==="green" ? "amber" : "green"; renderUrgencyPreview(); };
-function renderQuadPicker(){
-  $("mQuad").innerHTML = Object.keys(QUADS).map(k=>
-    `<button type="button" class="${editing.quadrant===k?'sel':''}" data-q="${k}" title="${QUADS[k].sub}">${QUADS[k].label}</button>`).join("")
-    + `<button type="button" class="${!editing.quadrant?'sel':''}" data-q="">—</button>`;
-  $("mQuad").querySelectorAll("button").forEach(b=>b.onclick=()=>{ editing.quadrant=b.dataset.q||null; renderQuadPicker(); });
-}
 function renderChecklist(){
   const cl = editing.checklist;
   $("mClProg").textContent = cl.length? `${cl.filter(i=>i.done).length}/${cl.length} done` : "";
@@ -1076,41 +1105,77 @@ function renderChecklist(){
   $("mChecklist").querySelectorAll("input").forEach(ch=>ch.onchange=()=>{ cl[+ch.dataset.ix].done=ch.checked; renderChecklist(); });
   $("mChecklist").querySelectorAll(".rm").forEach(b=>b.onclick=()=>{ cl.splice(+b.dataset.rm,1); renderChecklist(); });
 }
-function renderLinks(){
-  $("mLinks").innerHTML = editing.links.map((l,ix)=>
-    `<div class="lk-item">🔗 <a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title||l.url)}</a><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`).join("");
-  $("mLinks").querySelectorAll(".rm").forEach(b=>b.onclick=()=>{ editing.links.splice(+b.dataset.rm,1); renderLinks(); });
-}
+$("mClNew").addEventListener("keydown", e=>{
+  if (e.key==="Enter" && e.target.value.trim() && editing){
+    editing.checklist.push({text:e.target.value.trim(), done:false});
+    e.target.value=""; renderChecklist();
+  }
+});
+function isImg(p){ return (p.type||"").startsWith("image") || /\.(png|jpe?g|gif|webp|heic|heif|svg|bmp|tiff?)$/i.test(p.name||p.path||""); }
 function renderPhotos(){
-  $("mPhotos").innerHTML = editing.images.map((p,ix)=>
-    `<div class="ph-item"><img src="${esc(photoUrl(p))}" data-view="${ix}" alt="photo"><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`).join("")
-    + `<button class="ph-add" id="phAdd" title="Add photo">＋</button>`;
+  const items = editing.images.map((p,ix)=> isImg(p)
+    ? `<div class="ph-item"><img src="${esc(photoUrl(p))}" data-view="${ix}" alt="attachment"><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`
+    : `<div class="ph-item file"><a class="file-chip" href="${esc(photoUrl(p))}" target="_blank" rel="noopener" title="${esc(p.name||"file")}">📎 ${esc((p.name||"file"))}</a><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`).join("");
+  const linkItems = editing.links.map((l,ix)=>
+    `<div class="ph-item file"><a class="file-chip" href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.url)}">🔗 ${esc(l.title||l.url)}</a><button class="rm" data-rml="${ix}" title="Remove">×</button></div>`).join("");
+  $("mPhotos").innerHTML = items + linkItems + `<button class="ph-add" id="phAdd" title="Add files">＋</button>`;
   $("mPhotos").querySelectorAll("img[data-view]").forEach(img=>img.onclick=()=>showLightbox(img.src));
-  $("mPhotos").querySelectorAll(".rm").forEach(b=>b.onclick=async ()=>{
+  $("mPhotos").querySelectorAll("[data-rm]").forEach(b=>b.onclick=async ()=>{
     const ix=+b.dataset.rm; const p=editing.images[ix];
     editing.images.splice(ix,1); renderPhotos();
     try{ await fetch(SB_STORE+"/object/task-photos/"+p.path, {method:"DELETE",
       headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}}); }catch(e){ console.error(e); }
   });
+  $("mPhotos").querySelectorAll("[data-rml]").forEach(b=>b.onclick=()=>{ editing.links.splice(+b.dataset.rml,1); renderPhotos(); });
   $("phAdd").onclick=()=>$("phFile").click();
 }
-$("phFile").addEventListener("change", async e=>{
-  const files=[...e.target.files]; e.target.value="";
+async function addFiles(files){
   if(!files.length || !editing) return;
-  toast("Uploading "+files.length+" photo"+(files.length>1?"s":"")+"…");
+  toast("Attaching "+files.length+" file"+(files.length>1?"s":"")+"…");
   for (const f of files){
     try{
-      const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(-60);
+      const safe=(f.name||"pasted.png").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-60);
       const path=editing.id+"/"+Date.now()+"-"+safe;
       const res=await fetch(SB_STORE+"/object/task-photos/"+path, {method:"POST",
         headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":f.type||"application/octet-stream","x-upsert":"true"},
         body:f});
       if(!res.ok) throw new Error("upload "+res.status);
-      editing.images.push({path, name:f.name});
-    }catch(err){ console.error(err); toast("Photo upload failed — check connection"); }
+      editing.images.push({path, name:f.name||"pasted image", type:f.type||""});
+    }catch(err){ console.error(err); toast("Attachment failed — check connection"); }
   }
   renderPhotos();
+  toast("Attached ✓");
+}
+$("phFile").addEventListener("change", e=>{ const fs=[...e.target.files]; e.target.value=""; addFiles(fs); });
+/* Paste an image/file anywhere in the open task window → attaches */
+document.addEventListener("paste", e=>{
+  if(!editing || !$("taskPanel").classList.contains("open")) return;
+  const fs=[...((e.clipboardData||{}).files||[])];
+  if(fs.length){ e.preventDefault(); addFiles(fs); }
 });
+/* Drag & drop onto the task window → attaches */
+$("spBox").addEventListener("dragover", e=>{ e.preventDefault(); $("spBox").classList.add("dropping"); });
+$("spBox").addEventListener("dragleave", ()=>$("spBox").classList.remove("dropping"));
+$("spBox").addEventListener("drop", e=>{
+  e.preventDefault(); $("spBox").classList.remove("dropping");
+  const fs=[...((e.dataTransfer||{}).files||[])];
+  if(fs.length) addFiles(fs);
+});
+/* URLs typed or pasted in the notes attach themselves as links */
+function harvestLinks(){
+  if(!editing) return;
+  const found = ($("mDesc").innerText.match(/https?:\/\/[^\s<>"')\]]+/g)||[]);
+  let added=false;
+  found.forEach(u=>{
+    if(!editing.links.some(l=>l.url===u)){
+      let title=""; try{ title=new URL(u).hostname.replace(/^www\./,""); }catch(_){ }
+      editing.links.push({url:u, title}); added=true;
+    }
+  });
+  if(added) renderPhotos();
+}
+$("mDesc").addEventListener("blur", harvestLinks);
+$("mDesc").addEventListener("paste", ()=>setTimeout(harvestLinks, 50));
 function showLightbox(src){ $("lightboxImg").src=src; $("lightbox").classList.add("open"); }
 $("lightbox").onclick=()=>$("lightbox").classList.remove("open");
 
@@ -1118,12 +1183,13 @@ $("mCancel").onclick=closeTask;
 $("mClose").onclick=closeTask;
 $("taskScrim").onclick=closeTask;
 $("mSave").onclick=async ()=>{
+  harvestLinks();
   const title=$("mTitle").value.trim();
   if(!title){ toast("Give the task a name first"); $("mTitle").focus(); return; }
   if(!$("mDue").value){ toast("Every task needs a deadline — set the date"); $("mDue").focus(); return; }
-  const payload={ title, description:$("mDesc").value, employee_id:$("mEmp").value||null,
-    status:editing.status==="green" ? "green" : "amber", quadrant:editing.quadrant, site:$("mSite").value||null,
-    due_date:$("mDue").value, recurrence:$("mRec").value, waiting_on:$("mWait").value.trim(),
+  const payload={ title, description:sanitizeHtml($("mDesc").innerHTML), employee_id:$("mEmp").value||null,
+    status:editing.status==="green" ? "green" : "amber", quadrant:editing.quadrant||null, site:editing.site||null,
+    due_date:$("mDue").value, recurrence:$("mRec").value, waiting_on:editing.waiting_on||"",
     checklist:editing.checklist, links:editing.links, images:editing.images,
     updated_at:new Date().toISOString(), touched_by: meName() };
   try{
