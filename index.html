@@ -223,6 +223,14 @@
   .frow{display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;}
   .frow label{flex:0 0 86px; font-size:12px; color:var(--muted); font-weight:600;}
   .frow select,.frow input[type=date],.frow input[type=text]{padding:6px 9px; border:1px solid var(--line); border-radius:6px; background:var(--page); font-size:13px;}
+  .urg-picker{display:flex; gap:5px; flex-wrap:wrap; align-items:center;}
+  .urg-picker button{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px;
+    border:1.5px solid var(--line); font-size:12px; font-weight:600; color:var(--ink-2); background:var(--surface);}
+  .urg-picker button svg{width:12px;height:12px;}
+  .urg-picker button.sel{background:var(--surface-2); border-color:var(--ink); color:var(--ink);}
+  .urg-picker button.sel.red{background:var(--red-bg); border-color:var(--red); color:var(--red-ink);}
+  .urg-picker button.sel.amber{background:var(--amber-bg); border-color:var(--amber); color:var(--amber-ink);}
+  .urg-picker button.sel.yellow{background:var(--yellow-bg); border-color:var(--yellow); color:var(--yellow-ink);}
   .quad-picker{display:flex; gap:5px; flex-wrap:wrap;}
   .quad-picker button{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px;
     border:1.5px solid var(--line); font-size:12px; font-weight:600; color:var(--ink-2); background:var(--surface);}
@@ -321,7 +329,7 @@
     <div class="quickbar">
       <div class="qwrap">
         <input id="quickAdd" placeholder="Quick add — type a task and press Enter…  e.g.  @kumar ~3 +sparkbrook fridge temp log missed">
-        <div class="qhint">Shortcuts: <code>@name</code> assign · <code>~3</code> deadline in 3 days (or <code>~2026-08-01</code>) · <code>!iu !inu !niu !ninu</code> quadrant · <code>+site</code> branch · no deadline given = 7 days</div>
+        <div class="qhint">Shortcuts: <code>@name</code> assign · <code>~3</code> deadline in 3 days (or <code>~2026-08-01</code>) · <code>#red #amber #yellow</code> set urgency manually · <code>+site</code> branch · no deadline given = 7 days</div>
       </div>
     </div>
     <div class="topbar">
@@ -374,9 +382,11 @@
       <div class="frow"><label>Deadline *</label><input type="date" id="mDue">
         <label style="flex:0 0 auto;">Repeats</label>
         <select id="mRec"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-      <div class="frow"><label>Urgency</label><span id="mUrgency"></span>
-        <button class="btn ghost tiny" id="mComplete" type="button"></button></div>
-      <div class="frow"><label>Assign to</label><select id="mEmp" style="flex:1;"><option value="">— Unassigned —</option></select></div>
+      <div class="frow"><label>Urgency</label><div class="urg-picker" id="mUrgency"></div></div>
+      <div class="frow"><label></label><span class="m-meta" id="mUrgHint"></span>
+        <button class="btn ghost tiny" id="mComplete" type="button" style="margin-left:auto;"></button></div>
+      <div class="frow"><label>Assign to</label><select id="mEmp" style="flex:1;"><option value="">— Unassigned —</option></select>
+        <select id="mSite"><option value="">No site</option></select></div>
       <div class="note-tools" id="noteTools">
         <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
         <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
@@ -555,6 +565,7 @@ function workingDaysUntil(dateStr){
    red = past deadline or ≤2 working days · amber = ≤5 working days · yellow = later · green = completed */
 function urgency(t){
   if (t.status === "green") return "green";
+  if (t.urgency_override && STATUSES[t.urgency_override]) return t.urgency_override; // manual override
   if (!t.due_date) return "red"; // no deadline set — flag it hard so it gets one
   const wd = workingDaysUntil(t.due_date);
   if (t.due_date < todayStr() || wd <= 2) return "red";
@@ -773,7 +784,7 @@ function vBoard(){
       <button class="add-inline" data-add-task>+ Add task</button>
     </div>`;
   }).join("") + `</div>
-  <p style="font-size:12px;color:var(--muted);margin-top:10px;">Urgency is set automatically by each task’s deadline — drag a card onto <b>Green</b> to complete it, or click ✓ on the card. To change urgency, change the deadline.</p>`;
+  <p style="font-size:12px;color:var(--muted);margin-top:10px;">Urgency follows each task’s deadline automatically — drag a card onto <b>Green</b> to complete it (✓ on the card works too), or drag it into another colour to set that urgency manually.</p>`;
 }
 
 /* ---- Quadrant ---- */
@@ -874,7 +885,7 @@ function vSettings(){
       <div style="padding:12px 16px;font-size:13px;color:var(--ink-2);line-height:1.8;">
         <div>Every task needs a <b>deadline</b>. The traffic light is set automatically from it:</div>
         ${ORDER.map(k=>`<div>${chip(k)} <span style="color:var(--muted);font-size:12px;">— ${STATUSES[k].band}</span></div>`).join("")}
-        <div style="margin-top:8px;">To change a task’s urgency, change its deadline. Tick ✓ on a card (or drag it to Green) to complete it. Repeating tasks re-schedule themselves when completed.</div>
+        <div style="margin-top:8px;">Urgency follows the deadline automatically, but you can set it manually in the task window (or by dragging a card into a colour on the Board) — choose <b>Auto</b> to hand it back to the deadline. Tick ✓ on a card (or drag it to Green) to complete it. Repeating tasks re-schedule themselves when completed.</div>
         <div>Quadrants: <b>${QUADS.iu.label}</b> (${QUADS.iu.sub}) · <b>${QUADS.inu.label}</b> (${QUADS.inu.sub}) · <b>${QUADS.niu.label}</b> (${QUADS.niu.sub}) · <b>${QUADS.ninu.label}</b> (${QUADS.ninu.sub})</div>
       </div></div>
     <div class="panel"><h2>Employees <span class="h-sub">shared with your pharmacy-hr system · click a name in the sidebar for their profile</span></h2>
@@ -905,7 +916,7 @@ function wire(c){
       const t=tasks.find(x=>x.id===id); if(!t) return;
       if (col.dataset.col==="green"){ if(t.status!=="green") completeTask(id); }
       else if (t.status==="green"){ reopenTask(id); }
-      else { toast("Urgency follows the deadline — change the task’s deadline instead"); openTask(id); } };
+      else { setUrgencyOverride(id, col.dataset.col); } };
   });
   c.querySelectorAll("[data-quad]").forEach(cell=>{
     cell.ondragover=ev=>{ ev.preventDefault(); cell.classList.add("dragover"); };
@@ -950,7 +961,7 @@ async function completeTask(id){
       const nd = nextDue(t.due_date, t.recurrence);
       const cl = (Array.isArray(t.checklist)?t.checklist:[]).map(i=>({...i, done:false}));
       await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({
-        status:"amber", due_date: nd, checklist: cl, completed_at: null }))});
+        status:"amber", due_date: nd, checklist: cl, completed_at: null, urgency_override: null }))});
       await logActivity("completed ✓ (repeats "+t.recurrence+")", t, "next deadline "+fmtDate(nd));
       toast(`“${t.title}” done ✓ — rescheduled for ${fmtDate(nd)}`);
     } else {
@@ -975,6 +986,16 @@ function toggleDone(id){
   if (!t) return;
   if (t.status==="green") reopenTask(id); else completeTask(id);
 }
+async function setUrgencyOverride(id, u){
+  const t = tasks.find(x=>x.id===id);
+  if (!t) return;
+  try {
+    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({urgency_override: u}))});
+    await logActivity("urgency set manually → "+STATUSES[u].label, t, "Auto (by deadline) can be restored in the task window");
+    toast("Urgency set to "+STATUSES[u].label+" — “Auto” in the task window returns it to deadline-based");
+    await loadAll(true);
+  } catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }
+}
 async function changeQuadrant(id, quad){
   const t = tasks.find(x=>x.id===id);
   if (!t || t.quadrant===quad) return;
@@ -987,7 +1008,7 @@ async function changeQuadrant(id, quad){
 
 /* ================= Quick add ================= */
 function parseQuick(text){
-  const out = {title:"", status:"amber", quadrant:null, employee_id:null, site:null, due_date:null};
+  const out = {title:"", status:"amber", urgency_override:null, quadrant:null, employee_id:null, site:null, due_date:null};
   const words = [];
   text.split(/\s+/).forEach(w=>{
     const lw = w.toLowerCase();
@@ -997,6 +1018,7 @@ function parseQuick(text){
              || employees.find(e=>e.full_name.toLowerCase().replace(/\s+/g,"").includes(key));
       if (m){ out.employee_id = m.id; return; }
     }
+    if (lw.startsWith("#") && ["red","amber","yellow"].includes(lw.slice(1))){ out.urgency_override = lw.slice(1); return; }
     if (lw.startsWith("~") && lw.length>1){
       const v = lw.slice(1);
       if (/^\d{4}-\d{2}-\d{2}$/.test(v)){ out.due_date = v; return; }
@@ -1040,8 +1062,9 @@ function fillSelects(){
   $("meSelect").innerHTML = `<option value="">— choose your name —</option>`+opts; $("meSelect").value=keepMe;
   $("rEmp").innerHTML = opts; if(keepR) $("rEmp").value=keepR;
   const sopts = sites.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
-  const keepFS=$("fSite").value;
+  const keepFS=$("fSite").value, keepMS=$("mSite").value;
   $("fSite").innerHTML = `<option value="">All sites</option>`+sopts; $("fSite").value=keepFS;
+  $("mSite").innerHTML = `<option value="">No site</option>`+sopts; $("mSite").value=keepMS;
 }
 function sanitizeHtml(html){
   const div=document.createElement("div"); div.innerHTML=html;
@@ -1070,7 +1093,7 @@ function openTask(id, preset){
   const t = id ? tasks.find(x=>x.id===id) : null;
   editing = t ? JSON.parse(JSON.stringify(t)) : {
     id: crypto.randomUUID(), _new:true, title:"", description:"", employee_id:(preset&&preset.employee_id)||"",
-    status:"amber", quadrant:null, site:"", due_date:plusDays(DEFAULT_DEADLINE_DAYS), recurrence:"none",
+    status:"amber", urgency_override:null, quadrant:null, site:"", due_date:plusDays(DEFAULT_DEADLINE_DAYS), recurrence:"none",
     waiting_on:"", checklist:[], links:[], images:[]
   };
   if (!Array.isArray(editing.checklist)) editing.checklist=[];
@@ -1078,6 +1101,7 @@ function openTask(id, preset){
   if (!Array.isArray(editing.images)) editing.images=[];
   $("mTitle").value = editing.title||"";
   $("mEmp").value = editing.employee_id||"";
+  $("mSite").value = editing.site||"";
   $("mDue").value = editing.due_date||"";
   $("mRec").value = editing.recurrence||"none";
   setNotes(editing.description||"");
@@ -1090,9 +1114,16 @@ function openTask(id, preset){
 function closeTask(){ $("taskPanel").classList.remove("open"); editing=null; }
 function renderUrgencyPreview(){
   if (!editing) return;
-  const probe = { status: editing.status, due_date: $("mDue").value || null };
-  const u = urgency(probe);
-  $("mUrgency").innerHTML = chip(u) + ` <span class="m-meta">${probe.due_date? STATUSES[u].band : "set a deadline — required"}</span>`;
+  const due = $("mDue").value || null;
+  const auto = urgency({ status: editing.status, due_date: due, urgency_override: null });
+  $("mUrgency").innerHTML =
+    `<button type="button" class="${!editing.urgency_override?'sel':''}" data-u="">Auto · by deadline</button>` +
+    ["red","amber","yellow"].map(k=>
+      `<button type="button" class="${editing.urgency_override===k?'sel '+k:''}" data-u="${k}">${ICONS[k]}${STATUSES[k].label} · ${STATUSES[k].meaning}</button>`).join("");
+  $("mUrgency").querySelectorAll("button").forEach(b=>b.onclick=()=>{ editing.urgency_override=b.dataset.u||null; renderUrgencyPreview(); });
+  $("mUrgHint").textContent = editing.urgency_override
+    ? "Set manually — click Auto to follow the deadline again"
+    : (due ? "Auto: "+STATUSES[auto].label+" · "+STATUSES[auto].meaning+" ("+STATUSES[auto].band+")" : "Set a deadline — required");
   $("mComplete").textContent = editing.status==="green" ? "↩ Reopen" : "✓ Mark completed";
 }
 $("mDue").addEventListener("input", renderUrgencyPreview);
@@ -1188,7 +1219,8 @@ $("mSave").onclick=async ()=>{
   if(!title){ toast("Give the task a name first"); $("mTitle").focus(); return; }
   if(!$("mDue").value){ toast("Every task needs a deadline — set the date"); $("mDue").focus(); return; }
   const payload={ title, description:sanitizeHtml($("mDesc").innerHTML), employee_id:$("mEmp").value||null,
-    status:editing.status==="green" ? "green" : "amber", quadrant:editing.quadrant||null, site:editing.site||null,
+    status:editing.status==="green" ? "green" : "amber", urgency_override:editing.urgency_override||null,
+    quadrant:editing.quadrant||null, site:$("mSite").value||null,
     due_date:$("mDue").value, recurrence:$("mRec").value, waiting_on:editing.waiting_on||"",
     checklist:editing.checklist, links:editing.links, images:editing.images,
     updated_at:new Date().toISOString(), touched_by: meName() };
@@ -1198,7 +1230,7 @@ $("mSave").onclick=async ()=>{
       const nowGreen = payload.status==="green" && before.status!=="green";
       if (nowGreen && payload.recurrence!=="none"){
         // completing a repeating task from the editor: reschedule it
-        payload.status="amber"; payload.completed_at=null;
+        payload.status="amber"; payload.completed_at=null; payload.urgency_override=null;
         payload.due_date = nextDue(payload.due_date, payload.recurrence);
         payload.checklist = payload.checklist.map(i=>({...i, done:false}));
         await api(`/tb_tasks?id=eq.${editing.id}`, {method:"PATCH", body:JSON.stringify(payload)});
