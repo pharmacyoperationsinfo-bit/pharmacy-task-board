@@ -425,9 +425,10 @@
 <div class="overlay" id="empOverlay">
   <div class="modal">
     <h3 id="eTitle">Add employee</h3>
-    <div class="frow"><label>Full name</label><input type="text" id="eName" style="flex:1;" placeholder="e.g. Sarah Khan"></div>
+    <div class="frow" id="ePickRow"><label>From HR</label><select id="ePick" style="flex:1;"><option value="">— pick existing staff —</option></select></div>
+    <div class="frow"><label id="eNameLbl">Or new name</label><input type="text" id="eName" style="flex:1;" placeholder="e.g. Sarah Khan"></div>
     <div class="frow"><label>Role</label><input type="text" id="eRole" style="flex:1;" placeholder="e.g. Dispenser, Pharmacist, Driver"></div>
-    <p style="font-size:12px;color:var(--muted);margin:4px 0 0;">Employees are shared with your pharmacy-hr system — removing someone here marks them inactive there too. Their tasks stay on the board as unassigned.</p>
+    <p style="font-size:12px;color:var(--muted);margin:4px 0 0;">Removing someone only takes them off this board — they stay untouched in your pharmacy-hr system. Their tasks remain here under their name.</p>
     <div class="m-foot"><button class="btn danger" id="eRemove" style="display:none;">Remove</button><div class="spacer"></div>
       <button class="btn ghost" id="eCancel">Cancel</button>
       <button class="btn primary" id="eSave">Save</button></div>
@@ -487,7 +488,7 @@ const CAD_DAYS = {daily:1, weekly:7, monthly:31, quarterly:92, yearly:366};
 const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","#c98500","#d03b3b"];
 
 /* ================= State ================= */
-let employees = [], tasks = [], routines = [], activity = [], sites = [];
+let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [];
 let view = "dashboard";
 let profileEmp = null;
 let editing = null;
@@ -523,9 +524,12 @@ async function loadAll(silent) {
       api("/tb_activity?select=*&order=created_at.desc&limit=300"),
       api("/tb_settings?select=key,value")
     ]);
-    employees = e; tasks = t; routines = r; activity = a;
+    allStaff = e; tasks = t; routines = r; activity = a;
     const st = (s||[]).find(x=>x.key==="sites");
     sites = st && Array.isArray(st.value) ? st.value : [];
+    const tm = (s||[]).find(x=>x.key==="team");
+    teamIds = tm && Array.isArray(tm.value) ? tm.value : allStaff.map(x=>x.id);
+    employees = allStaff.filter(x=>teamIds.includes(x.id));
     setOnline(true);
     fillSelects();
     render();
@@ -542,7 +546,7 @@ async function logActivity(action, task, detail) {
 /* ================= Helpers ================= */
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const empById = id => employees.find(e => e.id === id);
+const empById = id => allStaff.find(e => e.id === id) || employees.find(e => e.id === id);
 const empName = id => (empById(id) || {}).full_name || "Unassigned";
 function meName(){ return me ? empName(me) : ""; }
 function initials(name){ return name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join("") || "?"; }
@@ -1272,33 +1276,58 @@ $("mDelete").onclick=async ()=>{
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete — check connection"); }
 };
 
-/* ================= Employee modal ================= */
+/* ================= Employee modal (board team, separate from HR) ================= */
 let editingEmp = null;
+async function saveTeam(){
+  await api("/tb_settings?on_conflict=key", {method:"POST",
+    headers:{"Prefer":"resolution=merge-duplicates,return=representation"},
+    body: JSON.stringify({key:"team", value:teamIds, updated_at:new Date().toISOString()})});
+}
 function openEmployee(id){
   editingEmp = id ? empById(id) : null;
-  $("eTitle").textContent = editingEmp? "Edit employee" : "Add employee";
+  $("eTitle").textContent = editingEmp? "Edit employee" : "Add employee to the board";
+  $("ePickRow").style.display = editingEmp? "none" : "";
+  $("eNameLbl").textContent = editingEmp? "Full name" : "Or new name";
+  if (!editingEmp){
+    const avail = allStaff.filter(e=>!teamIds.includes(e.id));
+    $("ePick").innerHTML = `<option value="">— pick existing staff —</option>` +
+      avail.map(e=>`<option value="${e.id}">${esc(e.full_name)}${e.role?` (${esc(e.role)})`:""}</option>`).join("");
+  }
   $("eName").value = editingEmp? editingEmp.full_name : "";
   $("eRole").value = editingEmp? (editingEmp.role||"") : "";
   const rm = $("eRemove");
   rm.style.display = editingEmp? "" : "none";
-  rm.textContent = "Remove"; rm.dataset.armed = "";
-  $("empOverlay").classList.add("open"); $("eName").focus();
+  rm.textContent = "Remove from board"; rm.dataset.armed = "";
+  $("empOverlay").classList.add("open");
+  if (editingEmp) $("eName").focus();
 }
 $("eCancel").onclick=()=>$("empOverlay").classList.remove("open");
 $("empOverlay").addEventListener("mousedown", e=>{ if(e.target===$("empOverlay")) $("empOverlay").classList.remove("open"); });
 $("eSave").onclick=async ()=>{
-  const name=$("eName").value.trim();
-  if(!name){ toast("Enter the employee’s name"); return; }
   try{
     if (editingEmp){
+      const name=$("eName").value.trim();
+      if(!name){ toast("Enter the employee’s name"); return; }
       await api(`/hr_employees?id=eq.${editingEmp.id}`, {method:"PATCH", body:JSON.stringify({ full_name:name, role:$("eRole").value.trim()||null })});
       await logActivity("employee updated", null, name);
+      toast(name+" saved");
+    } else if ($("ePick").value){
+      const picked = allStaff.find(e=>e.id===$("ePick").value);
+      teamIds.push(picked.id);
+      await saveTeam();
+      await logActivity("added to board", null, picked.full_name);
+      toast(picked.full_name+" added to the board");
     } else {
-      await api("/hr_employees", {method:"POST", body:JSON.stringify({ full_name:name, role:$("eRole").value.trim()||null, active:true })});
+      const name=$("eName").value.trim();
+      if(!name){ toast("Pick someone from HR or type a new name"); return; }
+      const rows = await api("/hr_employees", {method:"POST", body:JSON.stringify({ full_name:name, role:$("eRole").value.trim()||null, active:true })});
+      const ne = rows && rows[0];
+      if (ne) teamIds.push(ne.id);
+      await saveTeam();
       await logActivity("employee added", null, name);
+      toast(name+" added");
     }
     $("empOverlay").classList.remove("open");
-    toast(name+" saved");
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save employee — check connection"); }
 };
@@ -1307,11 +1336,12 @@ $("eRemove").onclick=async ()=>{
   const rm=$("eRemove");
   if(!rm.dataset.armed){ rm.dataset.armed="1"; rm.textContent="Click again to confirm"; return; }
   try{
-    await api(`/hr_employees?id=eq.${editingEmp.id}`, {method:"PATCH", body:JSON.stringify({ active:false })});
-    await logActivity("employee removed", null, editingEmp.full_name);
+    teamIds = teamIds.filter(x=>x!==editingEmp.id);
+    await saveTeam();
+    await logActivity("removed from board", null, editingEmp.full_name+" (still in pharmacy-hr)");
     $("empOverlay").classList.remove("open");
     if (view==="profile" && profileEmp===editingEmp.id){ view="dashboard"; profileEmp=null; }
-    toast(editingEmp.full_name+" removed");
+    toast(editingEmp.full_name+" removed from the board");
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t remove — check connection"); }
 };
