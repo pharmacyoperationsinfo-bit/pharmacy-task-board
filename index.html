@@ -380,8 +380,8 @@
     <h3 id="eTitle">Add employee</h3>
     <div class="frow"><label>Full name</label><input type="text" id="eName" style="flex:1;" placeholder="e.g. Sarah Khan"></div>
     <div class="frow"><label>Role</label><input type="text" id="eRole" style="flex:1;" placeholder="e.g. Dispenser, Pharmacist, Driver"></div>
-    <p style="font-size:12px;color:var(--muted);margin:4px 0 0;">Employees are shared with your pharmacy-hr system.</p>
-    <div class="m-foot"><div class="spacer"></div>
+    <p style="font-size:12px;color:var(--muted);margin:4px 0 0;">Employees are shared with your pharmacy-hr system — removing someone here marks them inactive there too. Their tasks stay on the board as unassigned.</p>
+    <div class="m-foot"><button class="btn danger" id="eRemove" style="display:none;">Remove</button><div class="spacer"></div>
       <button class="btn ghost" id="eCancel">Cancel</button>
       <button class="btn primary" id="eSave">Save</button></div>
   </div>
@@ -692,7 +692,9 @@ function vOwners(){
       <button class="add-inline" data-add-emp="${e.id}" style="width:100%;text-align:left;color:var(--muted);font-size:12.5px;padding:6px 8px;border-radius:6px;">+ Add task</button>
     </div>`;
   };
-  return `<div class="lanes">
+  return `<div style="margin-bottom:12px;"><button class="btn ghost tiny" data-add-employee-btn>+ Add employee</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:8px;">Click an employee in Settings to edit or remove them</span></div>
+  <div class="lanes">
     ${unY.length?`<div class="lane"><div class="lane-head"><span class="avatar" style="background:#898781">?</span>
       <div><div class="l-name">Unassigned</div><div class="l-role">needs an owner</div></div><span class="cnt">${unY.length}</span></div>
       ${unY.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}
@@ -808,7 +810,7 @@ function vSettings(){
   return `<div class="panel"><h2>Sites / branches <span class="h-sub">used for the 📍 tag and +site quick-add shortcut</span></h2>
       <div class="site-tag-list">${sites.map((s,ix)=>`<span class="site-tag">${esc(s)}<button data-rm-site="${ix}" title="Remove">×</button></span>`).join("")}
         <span class="site-tag" style="background:var(--surface);"><input id="newSite" placeholder="Add site…" style="border:none;outline:none;background:transparent;width:110px;font-size:12.5px;"></span></div></div>
-    <div class="panel"><h2>Employees <span class="h-sub">shared with your pharmacy-hr system · click ✎ to edit</span></h2>
+    <div class="panel"><h2>Employees <span class="h-sub">shared with your pharmacy-hr system · click ✎ to edit or remove</span></h2>
       <div style="padding:6px 0;">${employees.map(e=>`<div class="rt-row">
         <span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}</span>
         <span class="rt-notes">${esc(e.role||"")}</span>
@@ -859,6 +861,7 @@ function wire(c){
     }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }});
   const ar=$("btnAddRt"); if(ar) ar.onclick=()=>openRoutine(null);
   const ae=$("btnAddEmp"); if(ae) ae.onclick=()=>openEmployee(null);
+  c.querySelectorAll("[data-add-employee-btn]").forEach(el=>el.onclick=()=>openEmployee(null));
   c.querySelectorAll("[data-edit-emp]").forEach(el=>el.onclick=()=>openEmployee(el.dataset.editEmp));
   c.querySelectorAll("[data-rm-site]").forEach(el=>el.onclick=async ()=>{
     const ix=+el.dataset.rmSite; const removed=sites[ix];
@@ -1093,6 +1096,9 @@ function openEmployee(id){
   $("eTitle").textContent = editingEmp? "Edit employee" : "Add employee";
   $("eName").value = editingEmp? editingEmp.full_name : "";
   $("eRole").value = editingEmp? (editingEmp.role||"") : "";
+  const rm = $("eRemove");
+  rm.style.display = editingEmp? "" : "none";
+  rm.textContent = "Remove"; rm.dataset.armed = "";
   $("empOverlay").classList.add("open"); $("eName").focus();
 }
 $("eCancel").onclick=()=>$("empOverlay").classList.remove("open");
@@ -1112,6 +1118,18 @@ $("eSave").onclick=async ()=>{
     toast(name+" saved");
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save employee — check connection"); }
+};
+$("eRemove").onclick=async ()=>{
+  if(!editingEmp) return;
+  const rm=$("eRemove");
+  if(!rm.dataset.armed){ rm.dataset.armed="1"; rm.textContent="Click again to confirm"; return; }
+  try{
+    await api(`/hr_employees?id=eq.${editingEmp.id}`, {method:"PATCH", body:JSON.stringify({ active:false })});
+    await logActivity("employee removed", null, editingEmp.full_name);
+    $("empOverlay").classList.remove("open");
+    toast(editingEmp.full_name+" removed");
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t remove — check connection"); }
 };
 
 /* ================= Routine modal ================= */
