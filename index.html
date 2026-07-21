@@ -33,12 +33,15 @@
   .brand .logo{width:26px;height:26px;border-radius:6px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
   .brand .name{font-weight:600; font-size:14px;}
   .brand .sub{font-size:11px; color:var(--muted);}
-  .nav button{display:flex; align-items:center; gap:9px; width:100%; padding:6.5px 9px; border-radius:6px;
+  .nav button, .team-row{display:flex; align-items:center; gap:9px; width:100%; padding:6.5px 9px; border-radius:6px;
     color:var(--ink-2); font-size:13.5px; text-align:left;}
-  .nav button:hover{background:rgba(11,11,11,0.05);}
-  .nav button.active{background:rgba(11,11,11,0.08); color:var(--ink); font-weight:600;}
+  .nav button:hover, .team-row:hover{background:rgba(11,11,11,0.05);}
+  .nav button.active, .team-row.active{background:rgba(11,11,11,0.08); color:var(--ink); font-weight:600;}
   .nav button svg{width:16px;height:16px; flex:0 0 16px;}
   .nav .n-count{margin-left:auto; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .team-row .avatar{width:22px;height:22px;font-size:9.5px;}
+  .team-row .t-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .team-row .t-counts{margin-left:auto; display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
   .side-section{margin-top:auto; padding-top:10px;}
   .side-label{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:8px 9px 5px;}
   .legend-row{display:flex; align-items:center; gap:8px; padding:3px 9px; font-size:12.5px; color:var(--ink-2);}
@@ -88,7 +91,7 @@
   .content{flex:1; overflow:auto; padding:20px;}
 
   /* ---------- Dashboard ---------- */
-  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:12px; margin-bottom:20px;}
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px;}
   .tile{background:var(--surface); border:1px solid var(--ring); border-radius:var(--radius); padding:13px 15px; cursor:pointer; transition:box-shadow .12s;}
   .tile:hover{box-shadow:0 2px 8px rgba(11,11,11,0.07);}
   .tile .t-head{display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--ink-2);}
@@ -113,23 +116,25 @@
   .who .role{color:var(--muted); font-size:11.5px;}
 
   /* ---------- Cards ---------- */
-  .card{background:var(--surface); border:1px solid var(--ring); border-left:3px solid var(--line); border-radius:7px;
-    padding:9px 11px; margin-bottom:8px; cursor:pointer; box-shadow:0 1px 2px rgba(11,11,11,0.04);}
+  .card{position:relative; background:var(--surface); border:1px solid var(--ring); border-left:3px solid var(--line); border-radius:7px;
+    padding:9px 34px 9px 11px; margin-bottom:8px; cursor:pointer; box-shadow:0 1px 2px rgba(11,11,11,0.04);}
   .card:hover{box-shadow:0 2px 8px rgba(11,11,11,0.09);}
   .card.amber{border-left-color:var(--amber);} .card.yellow{border-left-color:var(--yellow);}
   .card.green{border-left-color:var(--green);} .card.red{border-left-color:var(--red);}
-  .card.very-stale{outline:1.5px dashed var(--red); outline-offset:1px;}
   .card .c-title{font-weight:600; font-size:13.5px; margin-bottom:5px;}
   .card.done .c-title{text-decoration:line-through; color:var(--ink-2);}
   .card .c-meta{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11.5px; color:var(--muted);}
+  .card .c-done{position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%;
+    border:1.5px solid var(--line); color:var(--muted); font-size:12px; display:flex; align-items:center; justify-content:center; background:var(--surface);}
+  .card .c-done:hover{border-color:var(--green); color:var(--green-ink); background:var(--green-bg);}
+  .card.done .c-done{border-color:var(--green); background:var(--green); color:#fff;}
   .badge{display:inline-flex; align-items:center; gap:4px; padding:1px 7px; border-radius:5px; background:var(--surface-2);
     border:1px solid var(--line); font-size:11px; color:var(--ink-2); white-space:nowrap;}
   .badge.overdue{background:var(--red-bg); color:var(--red-ink); border-color:#f0c4c4; font-weight:700;}
   .badge.today{background:var(--yellow-bg); color:var(--yellow-ink); border-color:#f0e0ae; font-weight:600;}
-  .badge.stale{background:var(--amber-bg); color:var(--amber-ink); border-color:#f3d4b2;}
-  .badge.stale.hard{background:var(--red-bg); color:var(--red-ink); border-color:#f0c4c4; font-weight:700;}
   .badge.quad{font-weight:700; letter-spacing:.03em;}
   .badge.wait{background:#eef3fb; border-color:#cfdff5; color:#2a5591;}
+  .badge.nodl{background:var(--red-bg); color:var(--red-ink); border-color:#f0c4c4;}
   .c-thumbs{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;}
   .c-thumbs img{width:34px; height:34px; object-fit:cover; border-radius:5px; border:1px solid var(--line);}
 
@@ -150,13 +155,22 @@
   .lane-head .l-name{font-weight:700; font-size:13px;}
   .lane-head .l-role{font-size:11px; color:var(--muted);}
   .lane-head .cnt{margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:600;}
-  .lane .routine-strip{background:var(--surface); border:1px dashed var(--line); border-radius:7px; padding:7px 9px; margin-bottom:8px;}
+  .routine-strip{background:var(--surface); border:1px dashed var(--line); border-radius:7px; padding:7px 9px; margin-bottom:8px;}
   .routine-strip .rs-head{font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:4px;}
   .rs-item{display:flex; align-items:center; gap:6px; font-size:12px; padding:2px 0; color:var(--ink-2); cursor:pointer;}
   .rs-item:hover{color:var(--ink);}
   .rs-item .rs-due{margin-left:auto; font-size:10.5px; color:var(--muted); white-space:nowrap;}
   .rs-item.overdue .rs-due{color:var(--red-ink); font-weight:700;}
   .rs-item.duesoon .rs-due{color:var(--amber-ink); font-weight:600;}
+
+  /* ---------- Profile ---------- */
+  .profile-head{display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--ring);
+    border-radius:var(--radius); padding:16px 18px; margin-bottom:18px;}
+  .profile-head .avatar{width:44px; height:44px; font-size:17px;}
+  .profile-head .p-name{font-size:17px; font-weight:700;}
+  .profile-head .p-role{font-size:12.5px; color:var(--muted);}
+  .p-group{margin-bottom:6px;}
+  .p-group .pg-head{display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; padding:8px 2px 8px; color:var(--ink-2);}
 
   /* ---------- Quadrant ---------- */
   .quad-wrap{display:grid; grid-template-columns:1fr 1fr; gap:14px; min-width:760px;}
@@ -206,14 +220,9 @@
   .frow{display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;}
   .frow label{flex:0 0 86px; font-size:12px; color:var(--muted); font-weight:600;}
   .frow select,.frow input[type=date],.frow input[type=text]{padding:6px 9px; border:1px solid var(--line); border-radius:6px; background:var(--page); font-size:13px;}
-  .status-picker,.quad-picker{display:flex; gap:5px; flex-wrap:wrap;}
-  .status-picker button,.quad-picker button{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px;
+  .quad-picker{display:flex; gap:5px; flex-wrap:wrap;}
+  .quad-picker button{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px;
     border:1.5px solid var(--line); font-size:12px; font-weight:600; color:var(--ink-2); background:var(--surface);}
-  .status-picker button svg{width:12px;height:12px;}
-  .status-picker button.sel.amber{background:var(--amber-bg); border-color:var(--amber); color:var(--amber-ink);}
-  .status-picker button.sel.yellow{background:var(--yellow-bg); border-color:var(--yellow); color:var(--yellow-ink);}
-  .status-picker button.sel.green{background:var(--green-bg); border-color:var(--green); color:var(--green-ink);}
-  .status-picker button.sel.red{background:var(--red-bg); border-color:var(--red); color:var(--red-ink);}
   .quad-picker button.sel{background:var(--surface-2); border-color:var(--ink); color:var(--ink);}
   textarea.f-desc{width:100%; min-height:64px; border:1px solid var(--line); border-radius:6px; background:var(--page); padding:8px 10px; font-size:13px; resize:vertical; margin-bottom:10px;}
   .sub-block{border:1px solid var(--line); border-radius:8px; padding:9px 12px; margin-bottom:10px; background:var(--page);}
@@ -278,10 +287,13 @@
       <div><div class="name">Task Board</div><div class="sub">Pharmacy Operations</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
+    <div class="side-label">Team</div>
+    <div id="teamList"></div>
+    <button class="team-row" id="teamAdd" style="color:var(--muted);font-size:12.5px;">＋ Add employee</button>
     <div class="side-section">
       <div class="side-label">I am</div>
       <select class="me-select" id="meSelect"><option value="">— choose your name —</option></select>
-      <div class="side-label">Traffic lights</div>
+      <div class="side-label">Urgency (by deadline)</div>
       <div id="legend"></div>
       <div class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting…</span></div>
     </div>
@@ -290,8 +302,8 @@
     <div class="banner" id="banner">⚠ Can’t reach the database — check your internet connection. Changes won’t save until it’s back.</div>
     <div class="quickbar">
       <div class="qwrap">
-        <input id="quickAdd" placeholder="Quick add — type a task and press Enter…  e.g.  @kumar #red !iu +sparkbrook fridge temp log missed">
-        <div class="qhint">Shortcuts: <code>@name</code> assign · <code>#red #amber #yellow #green</code> light · <code>!iu !inu !niu !ninu</code> quadrant · <code>+site</code> branch</div>
+        <input id="quickAdd" placeholder="Quick add — type a task and press Enter…  e.g.  @kumar ~3 +sparkbrook fridge temp log missed">
+        <div class="qhint">Shortcuts: <code>@name</code> assign · <code>~3</code> deadline in 3 days (or <code>~2026-08-01</code>) · <code>!iu !inu !niu !ninu</code> quadrant · <code>+site</code> branch · no deadline given = 7 days</div>
       </div>
     </div>
     <div class="topbar">
@@ -300,11 +312,11 @@
         <input id="q" type="search" placeholder="Search…"></div>
       <select id="fEmp"><option value="">All employees</option></select>
       <select id="fStatus">
-        <option value="">All lights</option>
-        <option value="amber">🟠 Amber — New</option>
-        <option value="yellow">🟡 Yellow — Ongoing</option>
-        <option value="green">🟢 Green — Completed</option>
+        <option value="">All urgency</option>
         <option value="red">🔴 Red — Urgent</option>
+        <option value="amber">🟠 Amber — Medium urgency</option>
+        <option value="yellow">🟡 Yellow — Low urgency</option>
+        <option value="green">🟢 Green — Completed</option>
       </select>
       <select id="fQuad">
         <option value="">All quadrants</option>
@@ -316,12 +328,11 @@
       </select>
       <select id="fSite"><option value="">All sites</option></select>
       <select id="fDue">
-        <option value="">Any due date</option>
-        <option value="overdue">Overdue</option>
+        <option value="">Any deadline</option>
+        <option value="overdue">Past deadline</option>
         <option value="today">Due today</option>
         <option value="week">Due this week</option>
-        <option value="stale">Stale (untouched 3d+)</option>
-        <option value="none">No due date</option>
+        <option value="none">No deadline set</option>
       </select>
       <div class="spacer"></div>
       <button class="btn ghost" id="btnPrint" title="Print this view">Print</button>
@@ -340,13 +351,14 @@
       <button class="icon-btn" id="mClose" title="Close (Esc)" style="font-size:18px;">×</button></div>
     <div class="sp-body">
       <input class="f-title" id="mTitle" placeholder="Task name…" maxlength="220">
-      <div class="frow"><label>Light</label><div class="status-picker" id="mStatus"></div></div>
+      <div class="frow"><label>Deadline *</label><input type="date" id="mDue">
+        <label style="flex:0 0 auto;">Repeats</label>
+        <select id="mRec"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+      <div class="frow"><label>Urgency</label><span id="mUrgency"></span>
+        <button class="btn ghost tiny" id="mComplete" type="button"></button></div>
       <div class="frow"><label>Quadrant</label><div class="quad-picker" id="mQuad"></div></div>
       <div class="frow"><label>Assign to</label><select id="mEmp"><option value="">— Unassigned —</option></select>
         <select id="mSite"><option value="">No site</option></select></div>
-      <div class="frow"><label>Due</label><input type="date" id="mDue">
-        <label style="flex:0 0 auto;">Repeats</label>
-        <select id="mRec"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
       <div class="frow"><label>Waiting on</label><input type="text" id="mWait" style="flex:1;" placeholder="e.g. wholesaler, accountant, NHS mail… (why it’s stuck)"></div>
       <textarea class="f-desc" id="mDesc" placeholder="Notes / description — instructions, details…"></textarea>
       <div class="sub-block">
@@ -390,7 +402,7 @@
 <!-- Routine modal -->
 <div class="overlay" id="rtOverlay">
   <div class="modal">
-    <h3 id="rTitle">Add routine</h3>
+    <h3 id="rTitle">Add regular duty</h3>
     <div class="frow"><label>Duty</label><input type="text" id="rName" style="flex:1;" placeholder="e.g. VAT return, Fridge temp audit"></div>
     <div class="frow"><label>Owner</label><select id="rEmp"></select></div>
     <div class="frow"><label>Cadence</label><select id="rCad">
@@ -400,7 +412,7 @@
     <div class="frow"><label>Notes</label><input type="text" id="rNotes" style="flex:1;" placeholder="optional"></div>
     <div class="m-foot"><button class="btn danger" id="rDelete" style="display:none;">Delete</button><div class="spacer"></div>
       <button class="btn ghost" id="rCancel">Cancel</button>
-      <button class="btn primary" id="rSave">Save routine</button></div>
+      <button class="btn primary" id="rSave">Save duty</button></div>
   </div>
 </div>
 
@@ -415,19 +427,19 @@ const SB_URL = SB + "/rest/v1";
 const SB_STORE = SB + "/storage/v1";
 const SB_KEY = "sb_publishable_frzzyjWGkrz1a5DB4UjFOg_yxSm20Pk";
 const POLL_MS = 25000;
-const STALE_SOFT = 3, STALE_HARD = 5; // days untouched
+const DEFAULT_DEADLINE_DAYS = 7;
 
 const ICONS = {
+  red:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".5" fill="currentColor"/></svg>',
   amber:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   yellow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>',
-  green:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m5 13 4.5 4.5L19 8"/></svg>',
-  red:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".5" fill="currentColor"/></svg>'
+  green:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m5 13 4.5 4.5L19 8"/></svg>'
 };
 const STATUSES = {
-  amber:  {label:"Amber",  meaning:"New / assigned", color:"var(--amber)"},
-  yellow: {label:"Yellow", meaning:"Ongoing",        color:"var(--yellow)"},
-  green:  {label:"Green",  meaning:"Completed",      color:"var(--green)"},
-  red:    {label:"Red",    meaning:"Urgent",         color:"var(--red)"}
+  red:    {label:"Red",    meaning:"Urgent",         color:"var(--red)",    band:"due ≤ 2 working days / past deadline"},
+  amber:  {label:"Amber",  meaning:"Medium urgency", color:"var(--amber)",  band:"due ≤ 5 working days"},
+  yellow: {label:"Yellow", meaning:"Low urgency",    color:"var(--yellow)", band:"due later"},
+  green:  {label:"Green",  meaning:"Completed",      color:"var(--green)",  band:"done"}
 };
 const ORDER = ["red","amber","yellow","green"];
 const QUADS = {
@@ -442,6 +454,7 @@ const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","
 /* ================= State ================= */
 let employees = [], tasks = [], routines = [], activity = [], sites = [];
 let view = "dashboard";
+let profileEmp = null;
 let editing = null;
 let sortKey = "due", sortAsc = true;
 let me = (location.hash.match(/me=([0-9a-f-]+)/)||[])[1] || "";
@@ -501,11 +514,28 @@ function initials(name){ return name.split(/\s+/).filter(Boolean).slice(0,2).map
 function avColor(emp){ if (emp && emp.color) return emp.color;
   const i = Math.abs([...(emp?emp.full_name:"?")].reduce((a,c)=>a+c.charCodeAt(0),0)) % AV_COLORS.length; return AV_COLORS[i]; }
 function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function plusDays(n){ const d=new Date(); d.setDate(d.getDate()+n);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function isOverdue(t){ return t.due_date && t.status!=="green" && t.due_date < todayStr(); }
 function isDueToday(t){ return t.due_date === todayStr() && t.status!=="green"; }
-function daysSince(iso){ if(!iso) return Infinity; return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
-function staleDays(t){ return t.status==="green" ? 0 : daysSince(t.updated_at); }
-function isStale(t){ return staleDays(t) >= STALE_SOFT; }
+function workingDaysUntil(dateStr){
+  const today = new Date(todayStr()+"T00:00:00");
+  const due = new Date(dateStr+"T00:00:00");
+  if (due <= today) return 0;
+  let d = new Date(today), n = 0, guard = 0;
+  while (d < due && guard++ < 4000){ d.setDate(d.getDate()+1); const day=d.getDay(); if (day!==0 && day!==6) n++; }
+  return n;
+}
+/* The traffic light is computed from the deadline:
+   red = past deadline or ≤2 working days · amber = ≤5 working days · yellow = later · green = completed */
+function urgency(t){
+  if (t.status === "green") return "green";
+  if (!t.due_date) return "red"; // no deadline set — flag it hard so it gets one
+  const wd = workingDaysUntil(t.due_date);
+  if (t.due_date < todayStr() || wd <= 2) return "red";
+  if (wd <= 5) return "amber";
+  return "yellow";
+}
 function fmtDate(d){ if(!d) return ""; const dt=new Date(d+"T00:00:00");
   return dt.toLocaleDateString([], {day:"numeric", month:"short"}) + (dt.getFullYear()!==new Date().getFullYear() ? " "+dt.getFullYear() : ""); }
 function fmtWhen(iso){ const d=new Date(iso);
@@ -520,7 +550,7 @@ function nextDue(dateStr, rec){
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
 function routineState(r){
-  const ds = r.last_done ? daysSince(r.last_done+"T00:00:00") : Infinity;
+  const ds = r.last_done ? Math.floor((Date.now() - new Date(r.last_done+"T00:00:00").getTime())/86400000) : Infinity;
   const period = CAD_DAYS[r.cadence] || 7;
   if (ds > period) return {cls:"over", label:"Overdue", ds};
   if (ds > period*0.75) return {cls:"soon", label:"Due soon", ds};
@@ -528,29 +558,27 @@ function routineState(r){
 }
 function photoUrl(p){ return SB_STORE + "/object/public/task-photos/" + p.path; }
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2600); }
-function chip(status, small){ const s=STATUSES[status];
-  return `<span class="chip ${status}${small?' small':''}">${ICONS[status]}${s.label} · ${s.meaning}</span>`; }
-function statusDot(status){ return `<span class="sdot" style="background:${STATUSES[status].color}"></span>`; }
+function chip(u, small){ const s=STATUSES[u];
+  return `<span class="chip ${u}${small?' small':''}">${ICONS[u]}${s.label} · ${s.meaning}</span>`; }
+function statusDot(u){ return `<span class="sdot" style="background:${STATUSES[u].color}"></span>`; }
 function stamp(extra){ return { updated_at: new Date().toISOString(), touched_by: meName(), ...(extra||{}) }; }
 
 /* ================= Filters ================= */
 function filteredTasks(){
   const q = $("q").value.trim().toLowerCase();
   const fe = $("fEmp").value, fs = $("fStatus").value, fq = $("fQuad").value, fsite = $("fSite").value, fd = $("fDue").value;
-  const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate()+7);
-  const weekEndStr = weekEnd.toISOString().slice(0,10);
+  const weekEnd = plusDays(7);
   return tasks.filter(t => {
     if (q && !( (t.title||"").toLowerCase().includes(q) || (t.description||"").toLowerCase().includes(q)
       || (t.waiting_on||"").toLowerCase().includes(q) || (t.site||"").toLowerCase().includes(q)
       || empName(t.employee_id).toLowerCase().includes(q) )) return false;
     if (fe && t.employee_id !== fe) return false;
-    if (fs && t.status !== fs) return false;
+    if (fs && urgency(t) !== fs) return false;
     if (fq==="untriaged" ? t.quadrant : (fq && t.quadrant !== fq)) return false;
     if (fsite && t.site !== fsite) return false;
     if (fd==="overdue" && !isOverdue(t)) return false;
     if (fd==="today" && !isDueToday(t)) return false;
-    if (fd==="week" && !(t.due_date && t.due_date >= todayStr() && t.due_date <= weekEndStr)) return false;
-    if (fd==="stale" && !isStale(t)) return false;
+    if (fd==="week" && !(t.due_date && t.due_date >= todayStr() && t.due_date <= weekEnd)) return false;
     if (fd==="none" && t.due_date) return false;
     return true;
   });
@@ -559,11 +587,10 @@ function filteredTasks(){
 /* ================= Views ================= */
 const VIEWS = [
   {id:"dashboard", label:"Dashboard", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>'},
-  {id:"owners", label:"By owner", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="3.5"/><path d="M5 20c.9-3.8 3.8-6 7-6s6.1 2.2 7 6"/></svg>'},
   {id:"board", label:"Board", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1.5"/><rect x="10" y="3" width="5" height="12" rx="1.5"/><rect x="17" y="3" width="5" height="15" rx="1.5"/></svg>'},
   {id:"quadrant", label:"Quadrant", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>'},
   {id:"list", label:"List", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1.3" fill="currentColor"/><circle cx="4" cy="12" r="1.3" fill="currentColor"/><circle cx="4" cy="18" r="1.3" fill="currentColor"/></svg>'},
-  {id:"routines", label:"Routines", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v5h-5"/></svg>'},
+  {id:"routines", label:"Regular cadence", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v5h-5"/></svg>'},
   {id:"activity", label:"Activity", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg>'},
   {id:"settings", label:"Settings", icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></svg>'}
 ];
@@ -575,41 +602,55 @@ function navCount(id){
 function renderNav(){
   $("nav").innerHTML = VIEWS.map(v =>
     `<button class="${view===v.id?'active':''}" data-v="${v.id}">${v.icon}${v.label}<span class="n-count">${navCount(v.id)}</span></button>`).join("");
-  $("nav").querySelectorAll("button").forEach(b => b.onclick = () => { view=b.dataset.v; render(); });
+  $("nav").querySelectorAll("button").forEach(b => b.onclick = () => { view=b.dataset.v; profileEmp=null; render(); });
+  $("teamList").innerHTML = employees.map(e => {
+    const open = tasks.filter(t=>t.employee_id===e.id && t.status!=="green");
+    const red = open.filter(t=>urgency(t)==="red").length;
+    return `<button class="team-row ${view==='profile'&&profileEmp===e.id?'active':''}" data-emp="${e.id}">
+      <span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>
+      <span class="t-name">${esc(e.full_name)}</span>
+      <span class="t-counts">${red?`<span class="sdot" style="background:var(--red)" title="${red} urgent"></span>`:""}${open.length}</span></button>`;
+  }).join("");
+  $("teamList").querySelectorAll(".team-row").forEach(b => b.onclick = () => { view="profile"; profileEmp=b.dataset.emp; render(); });
   $("legend").innerHTML = ORDER.map(k =>
     `<div class="legend-row">${statusDot(k)}<span>${STATUSES[k].label}</span><span class="meaning">${STATUSES[k].meaning}</span></div>`).join("");
 }
 function render(){
   renderNav();
-  $("viewTitle").textContent = VIEWS.find(v=>v.id===view).label;
   const c = $("content");
-  if (view==="dashboard") c.innerHTML = vDashboard();
-  else if (view==="owners") c.innerHTML = vOwners();
-  else if (view==="board") c.innerHTML = vBoard();
-  else if (view==="quadrant") c.innerHTML = vQuadrant();
-  else if (view==="list") c.innerHTML = vList();
-  else if (view==="routines") c.innerHTML = vRoutines();
-  else if (view==="settings") c.innerHTML = vSettings();
-  else c.innerHTML = vActivity();
+  if (view==="profile"){
+    const e = empById(profileEmp);
+    $("viewTitle").textContent = e ? e.full_name : "Profile";
+    c.innerHTML = vProfile();
+  } else {
+    $("viewTitle").textContent = (VIEWS.find(v=>v.id===view)||{}).label || "";
+    if (view==="dashboard") c.innerHTML = vDashboard();
+    else if (view==="board") c.innerHTML = vBoard();
+    else if (view==="quadrant") c.innerHTML = vQuadrant();
+    else if (view==="list") c.innerHTML = vList();
+    else if (view==="routines") c.innerHTML = vRoutines();
+    else if (view==="settings") c.innerHTML = vSettings();
+    else c.innerHTML = vActivity();
+  }
   wire(c);
 }
 
 /* ---- Card ---- */
 function cardHTML(t, opts){
   opts = opts||{};
+  const u = urgency(t);
   const e = empById(t.employee_id);
   const cl = Array.isArray(t.checklist)? t.checklist : [];
   const done = cl.filter(i=>i.done).length;
-  const sd = staleDays(t);
   const imgs = Array.isArray(t.images)? t.images : [];
-  return `<div class="card ${t.status}${t.status==='green'?' done':''}${sd>=STALE_HARD?' very-stale':''}" draggable="true" data-id="${t.id}">
+  return `<div class="card ${u}${t.status==='green'?' done':''}" draggable="true" data-id="${t.id}">
+    <button class="c-done" data-done="${t.id}" title="${t.status==='green'?'Reopen':'Mark completed'}">✓</button>
     <div class="c-title">${esc(t.title)}</div>
     <div class="c-meta">
       ${!opts.hideOwner ? (e?`<span class="who"><span class="avatar" style="width:20px;height:20px;font-size:9px;background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name.split(" ")[0])}</span>`:'<span class="badge">Unassigned</span>') : ""}
       ${t.quadrant?`<span class="badge quad" title="${QUADS[t.quadrant].label} — ${QUADS[t.quadrant].sub}">${QUADS[t.quadrant].code}</span>`:""}
       ${t.site?`<span class="badge">📍 ${esc(t.site)}</span>`:""}
-      ${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${isDueToday(t)?'Today':fmtDate(t.due_date)}</span>`:""}
-      ${sd>=STALE_SOFT?`<span class="badge stale${sd>=STALE_HARD?' hard':''}" title="Untouched for ${sd} days">💤 ${sd}d</span>`:""}
+      ${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${isDueToday(t)?'Today':fmtDate(t.due_date)}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}
       ${t.waiting_on?`<span class="badge wait" title="Waiting on ${esc(t.waiting_on)}">⏳ ${esc(t.waiting_on)}</span>`:""}
       ${cl.length?`<span class="badge">☑ ${done}/${cl.length}</span>`:""}
       ${t.recurrence && t.recurrence!=="none"?`<span class="badge" title="Repeats ${t.recurrence}">↻</span>`:""}
@@ -622,104 +663,98 @@ function cardHTML(t, opts){
 /* ---- Dashboard ---- */
 function vDashboard(){
   const ft = filteredTasks();
-  const overdue = ft.filter(isOverdue);
-  const stale = ft.filter(t=>staleDays(t)>=STALE_HARD);
-  const danger = ft.filter(t=>t.quadrant==="inu" && t.status!=="green" && (t.status==="red" || isOverdue(t) || staleDays(t)>=STALE_HARD));
   const rtOver = routines.filter(r=>routineState(r).cls==="over");
   const tiles = ORDER.map(k => {
-    const n = ft.filter(t=>t.status===k).length;
+    const n = ft.filter(t=>urgency(t)===k).length;
     return `<div class="tile" data-goto-status="${k}">
       <div class="t-head" style="color:${STATUSES[k].color}">${ICONS[k]}<span style="color:var(--ink-2)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span></div>
-      <div class="t-num">${n}</div><div class="t-sub">task${n===1?"":"s"}</div></div>`;
+      <div class="t-num">${n}</div><div class="t-sub">${STATUSES[k].band}</div></div>`;
   }).join("");
   const rows = employees.map(e => {
     const mine = ft.filter(t=>t.employee_id===e.id);
     if (!mine.length) return "";
-    const cells = ORDER.map(k=>{const n=mine.filter(t=>t.status===k).length;
+    const cells = ORDER.map(k=>{const n=mine.filter(t=>urgency(t)===k).length;
       return `<td class="count-cell" style="color:${n? STATUSES[k].color:'var(--muted)'}">${n}</td>`;}).join("");
-    const od = mine.filter(isOverdue).length, sl = mine.filter(t=>staleDays(t)>=STALE_HARD).length;
     return `<tr data-goto-emp="${e.id}"><td><span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)} <span class="role">${esc(e.role||"")}</span></span></td>
-      ${cells}<td class="count-cell">${mine.filter(t=>t.status!=="green").length}</td>
-      <td>${od?`<span class="badge overdue">⚠ ${od} overdue</span>`:""} ${sl?`<span class="badge stale hard">💤 ${sl} stale</span>`:""}${!od&&!sl?'<span style="color:var(--muted)">—</span>':""}</td></tr>`;
+      ${cells}<td class="count-cell">${mine.filter(t=>t.status!=="green").length}</td></tr>`;
   }).join("");
   const unassigned = ft.filter(t=>!t.employee_id && t.status!=="green").length;
-  const untriaged = ft.filter(t=>!t.quadrant && t.status!=="green").length;
+  const noDeadline = ft.filter(t=>!t.due_date && t.status!=="green").length;
   return `
     <div class="tiles">${tiles}
-      <div class="tile" data-goto-due="overdue"><div class="t-head"><span style="color:var(--red)">⚠</span><span style="color:var(--ink-2)">Overdue</span></div>
-        <div class="t-num" style="color:${overdue.length?'var(--red)':'var(--ink)'}">${overdue.length}</div><div class="t-sub">missed dates</div></div>
-      <div class="tile" data-goto-due="stale"><div class="t-head"><span>💤</span><span style="color:var(--ink-2)">Stale ${STALE_HARD}d+</span></div>
-        <div class="t-num" style="color:${stale.length?'var(--amber)':'var(--ink)'}">${stale.length}</div><div class="t-sub">untouched</div></div>
-      <div class="tile" data-goto-view="routines"><div class="t-head"><span>↻</span><span style="color:var(--ink-2)">Routines due</span></div>
-        <div class="t-num" style="color:${rtOver.length?'var(--red)':'var(--ink)'}">${rtOver.length}</div><div class="t-sub">standing duties</div></div>
+      <div class="tile" data-goto-view="routines"><div class="t-head"><span>↻</span><span style="color:var(--ink-2)">Regular cadence</span></div>
+        <div class="t-num" style="color:${rtOver.length?'var(--red)':'var(--ink)'}">${rtOver.length}</div><div class="t-sub">duties due</div></div>
     </div>
-    ${danger.length?`<div class="panel"><h2>⚠ Danger corner <span class="h-sub">Important-but-not-urgent work that’s rotting (red, overdue, or stale)</span></h2>
-      <div style="padding:10px 14px;">${danger.map(t=>cardHTML(t)).join("")}</div></div>`:""}
-    ${rtOver.length?`<div class="panel"><h2>↻ Standing duties overdue <span class="h-sub">these get buried by firefighting — check them first</span></h2>
-      ${rtOver.map(r=>{const e=empById(r.employee_id); const st=routineState(r);
-        return `<div class="rt-row" data-rt="${r.id}"><span class="rt-state over">Overdue</span>
+    ${rtOver.length?`<div class="panel"><h2>↻ Regular cadence — due <span class="h-sub">standing duties that get buried by firefighting — check them first</span></h2>
+      ${rtOver.map(r=>{const e=empById(r.employee_id);
+        return `<div class="rt-row" data-rt="${r.id}"><span class="rt-state over">Due</span>
         <span class="rt-title">${esc(r.title)}</span><span class="rt-cad">${r.cadence}</span>
         <span class="rt-last">${r.last_done?("last done "+fmtDate(r.last_done)):"never done"}</span>
         <span class="who">${e?`<span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}`:""}</span>
         <span class="rt-actions"><button class="btn ghost tiny" data-rt-done="${r.id}">✓ Done today</button></span></div>`;}).join("")}</div>`:""}
     <div class="panel"><h2>Workload by employee</h2>
-      <table class="grid"><thead><tr><th>Employee</th>${ORDER.map(k=>`<th>${STATUSES[k].label}</th>`).join("")}<th>Open</th><th>Alerts</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="7"><div class="empty">No tasks yet — use the quick-add bar above to create your first.</div></td></tr>`}</tbody></table></div>
-    ${(unassigned||untriaged)?`<div class="panel"><h2>Heads up</h2><div style="padding:12px 16px;font-size:13px;color:var(--ink-2)">
+      <table class="grid"><thead><tr><th>Employee</th>${ORDER.map(k=>`<th>${STATUSES[k].meaning}</th>`).join("")}<th>Open</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6"><div class="empty">No tasks yet — use the quick-add bar above to create your first.</div></td></tr>`}</tbody></table></div>
+    ${(unassigned||noDeadline)?`<div class="panel"><h2>Heads up</h2><div style="padding:12px 16px;font-size:13px;color:var(--ink-2)">
       ${unassigned?`${unassigned} open task${unassigned===1?"":"s"} unassigned. `:""}
-      ${untriaged?`${untriaged} open task${untriaged===1?"":"s"} not yet placed in a quadrant — drag them in the <b>Quadrant</b> view.`:""}</div></div>`:""}`;
+      ${noDeadline?`${noDeadline} open task${noDeadline===1?"":"s"} missing a deadline — every task needs one.`:""}</div></div>`:""}`;
 }
 
-/* ---- Owners (swimlanes) ---- */
-function vOwners(){
-  const ft = filteredTasks();
-  const lanes = employees.filter(e => ft.some(t=>t.employee_id===e.id) || routines.some(r=>r.employee_id===e.id));
-  const unY = ft.filter(t=>!t.employee_id);
-  const laneHTML = e => {
-    const mine = ft.filter(t=>t.employee_id===e.id)
-      .sort((a,b)=>(ORDER.indexOf(a.status)-ORDER.indexOf(b.status)) || ((a.due_date||"9999")<(b.due_date||"9999")?-1:1));
-    const rts = routines.filter(r=>r.employee_id===e.id);
-    return `<div class="lane" data-lane="${e.id}">
-      <div class="lane-head"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>
-        <div><div class="l-name">${esc(e.full_name)}</div><div class="l-role">${esc(e.role||"")}</div></div>
-        <span class="cnt">${mine.filter(t=>t.status!=="green").length} open</span></div>
-      ${rts.length?`<div class="routine-strip"><div class="rs-head">Standing duties</div>
-        ${rts.map(r=>{const st=routineState(r);
-          return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}, ${r.last_done?'last done '+fmtDate(r.last_done):'never done'}">
-            <span class="sdot" style="background:${st.cls==='over'?'var(--red)':st.cls==='soon'?'var(--amber)':'var(--green)'}"></span>
-            ${esc(r.title)}<span class="rs-due">${st.cls==='over'?'overdue':st.cls==='soon'?'due soon':'ok'}</span></div>`;}).join("")}</div>`:""}
-      ${mine.map(t=>cardHTML(t,{hideOwner:true})).join("") || '<div class="empty" style="padding:14px 4px;">No tasks</div>'}
-      <button class="add-inline" data-add-emp="${e.id}" style="width:100%;text-align:left;color:var(--muted);font-size:12.5px;padding:6px 8px;border-radius:6px;">+ Add task</button>
-    </div>`;
+/* ---- Profile ---- */
+function vProfile(){
+  const e = empById(profileEmp);
+  if (!e) return '<div class="empty">Employee not found.</div>';
+  const mine = tasks.filter(t=>t.employee_id===e.id);
+  const rts = routines.filter(r=>r.employee_id===e.id);
+  const open = mine.filter(t=>t.status!=="green");
+  const completed = mine.filter(t=>t.status==="green")
+    .sort((a,b)=>(a.completed_at||"")<(b.completed_at||"")?1:-1).slice(0,10);
+  const group = k => {
+    const g = open.filter(t=>urgency(t)===k).sort((a,b)=>(a.due_date||"9999")<(b.due_date||"9999")?-1:1);
+    if (!g.length) return "";
+    return `<div class="p-group"><div class="pg-head" style="color:${STATUSES[k].color}">${statusDot(k)}
+      <span style="color:var(--ink)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span>
+      <span style="color:var(--muted);font-weight:500;">${g.length}</span></div>${g.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`;
   };
-  return `<div style="margin-bottom:12px;"><button class="btn ghost tiny" data-add-employee-btn>+ Add employee</button>
-    <span style="font-size:12px;color:var(--muted);margin-left:8px;">Click an employee in Settings to edit or remove them</span></div>
-  <div class="lanes">
-    ${unY.length?`<div class="lane"><div class="lane-head"><span class="avatar" style="background:#898781">?</span>
-      <div><div class="l-name">Unassigned</div><div class="l-role">needs an owner</div></div><span class="cnt">${unY.length}</span></div>
-      ${unY.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}
-    ${lanes.map(laneHTML).join("") || '<div class="empty">No employees with tasks yet.</div>'}</div>`;
+  return `<div class="profile-head">
+      <span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>
+      <div><div class="p-name">${esc(e.full_name)}</div><div class="p-role">${esc(e.role||"Team member")} · ${open.length} open task${open.length===1?"":"s"}</div></div>
+      <div class="spacer"></div>
+      <button class="btn ghost tiny" data-edit-emp="${e.id}">✎ Edit</button>
+      <button class="btn primary tiny" data-add-emp-task="${e.id}">+ Add task</button>
+    </div>
+    ${rts.length?`<div class="routine-strip" style="margin-bottom:16px;"><div class="rs-head">Regular cadence</div>
+      ${rts.map(r=>{const st=routineState(r);
+        return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}, ${r.last_done?'last done '+fmtDate(r.last_done):'never done'}">
+          <span class="sdot" style="background:${st.cls==='over'?'var(--red)':st.cls==='soon'?'var(--amber)':'var(--green)'}"></span>
+          ${esc(r.title)} <span class="rt-cad">${r.cadence}</span>
+          <span class="rs-due">${st.cls==='over'?'due — mark done?':st.cls==='soon'?'due soon':'ok'}</span>
+          <button class="btn ghost tiny" data-rt-done="${r.id}" style="margin-left:8px;">✓</button></div>`;}).join("")}</div>`:""}
+    ${open.length ? ORDER.slice(0,3).map(group).join("") : '<div class="empty">No open tasks — add one with the button above or the quick-add bar.</div>'}
+    ${completed.length?`<div class="p-group"><div class="pg-head" style="color:var(--green)">${statusDot("green")}
+      <span style="color:var(--ink)">Recently completed</span></div>${completed.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}`;
 }
 
 /* ---- Board ---- */
 function vBoard(){
   const ft = filteredTasks();
   return `<div class="board">` + ORDER.map(k => {
-    const col = ft.filter(t=>t.status===k).sort((a,b)=>(a.due_date||"9999")<(b.due_date||"9999")?-1:1);
+    const col = ft.filter(t=>urgency(t)===k).sort((a,b)=>(a.due_date||"9999")<(b.due_date||"9999")?-1:1);
     return `<div class="col" data-col="${k}">
       <div class="col-head" style="color:${STATUSES[k].color}">${statusDot(k)}<span style="color:var(--ink)">${STATUSES[k].label}</span>
         <span class="cmeaning">${STATUSES[k].meaning}</span><span class="cnt">${col.length}</span></div>
       ${col.map(t=>cardHTML(t)).join("")}
-      <button class="add-inline" data-add-status="${k}">+ Add task</button>
+      <button class="add-inline" data-add-task>+ Add task</button>
     </div>`;
-  }).join("") + `</div>`;
+  }).join("") + `</div>
+  <p style="font-size:12px;color:var(--muted);margin-top:10px;">Urgency is set automatically by each task’s deadline — drag a card onto <b>Green</b> to complete it, or click ✓ on the card. To change urgency, change the deadline.</p>`;
 }
 
 /* ---- Quadrant ---- */
 function vQuadrant(){
   const ft = filteredTasks().filter(t=>t.status!=="green");
   const cell = q => {
-    const col = ft.filter(t=>t.quadrant===q).sort((a,b)=>ORDER.indexOf(a.status)-ORDER.indexOf(b.status));
+    const col = ft.filter(t=>t.quadrant===q).sort((a,b)=>ORDER.indexOf(urgency(a))-ORDER.indexOf(urgency(b)));
     return `<div class="qcell ${q}" data-quad="${q}">
       <div class="q-head">${QUADS[q].label} <span class="badge quad">${QUADS[q].code}</span><span class="cnt" style="margin-left:auto;font-size:11.5px;color:var(--muted);">${col.length}</span></div>
       <div class="q-sub">${QUADS[q].sub}</div>
@@ -737,7 +772,7 @@ function vList(){
   const dir = sortAsc?1:-1;
   ft = ft.slice().sort((a,b)=>{
     if (sortKey==="due") return ((a.due_date||"9999")<(b.due_date||"9999")?-1:1)*dir;
-    if (sortKey==="status") return (ORDER.indexOf(a.status)-ORDER.indexOf(b.status))*dir;
+    if (sortKey==="status") return (ORDER.indexOf(urgency(a))-ORDER.indexOf(urgency(b)))*dir;
     if (sortKey==="emp") return empName(a.employee_id).localeCompare(empName(b.employee_id))*dir;
     if (sortKey==="site") return String(a.site||"").localeCompare(String(b.site||""))*dir;
     if (sortKey==="updated") return (a.updated_at<b.updated_at?-1:1)*dir;
@@ -745,33 +780,32 @@ function vList(){
   });
   const arrow = k => sortKey===k ? (sortAsc?" ↑":" ↓") : "";
   const rows = ft.map(t=>{
+    const u=urgency(t);
     const e=empById(t.employee_id); const cl=Array.isArray(t.checklist)?t.checklist:[];
-    const sd=staleDays(t);
     return `<tr data-open="${t.id}">
-      <td>${chip(t.status, true)}</td>
+      <td>${chip(u, true)}</td>
       <td style="font-weight:600;${t.status==='green'?'text-decoration:line-through;color:var(--ink-2);':''}">${esc(t.title)}
         ${t.quadrant?` <span class="badge quad">${QUADS[t.quadrant].code}</span>`:""}
         ${t.recurrence && t.recurrence!=="none"?' <span class="badge" title="Repeats">↻</span>':''}
-        ${sd>=STALE_SOFT?` <span class="badge stale${sd>=STALE_HARD?' hard':''}">💤 ${sd}d</span>`:""}
         ${t.waiting_on?` <span class="badge wait">⏳ ${esc(t.waiting_on)}</span>`:""}</td>
       <td>${e?`<span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td>${t.site?esc(t.site):'<span style="color:var(--muted)">—</span>'}</td>
-      <td>${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${fmtDate(t.due_date)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${fmtDate(t.due_date)}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}</td>
       <td>${cl.length?`☑ ${cl.filter(i=>i.done).length}/${cl.length}`:'<span style="color:var(--muted)">—</span>'}</td>
       <td style="color:var(--muted);font-size:12px;">${fmtWhen(t.updated_at)}${t.touched_by?` · ${esc(t.touched_by.split(" ")[0])}`:""}</td></tr>`;
   }).join("");
   return `<div class="panel"><table class="grid"><thead><tr>
-      <th class="sortable" data-sort="status">Light${arrow("status")}</th>
+      <th class="sortable" data-sort="status">Urgency${arrow("status")}</th>
       <th class="sortable" data-sort="title">Task${arrow("title")}</th>
       <th class="sortable" data-sort="emp">Owner${arrow("emp")}</th>
       <th class="sortable" data-sort="site">Site${arrow("site")}</th>
-      <th class="sortable" data-sort="due">Due${arrow("due")}</th>
+      <th class="sortable" data-sort="due">Deadline${arrow("due")}</th>
       <th>Checklist</th>
       <th class="sortable" data-sort="updated">Last touched${arrow("updated")}</th></tr></thead>
     <tbody>${rows || `<tr><td colspan="7"><div class="empty">No tasks match — try clearing the search or filters.</div></td></tr>`}</tbody></table></div>`;
 }
 
-/* ---- Routines ---- */
+/* ---- Regular cadence ---- */
 function vRoutines(){
   const groups = employees.filter(e=>routines.some(r=>r.employee_id===e.id));
   const orphans = routines.filter(r=>!empById(r.employee_id));
@@ -788,13 +822,13 @@ function vRoutines(){
         <button class="icon-btn" data-rt="${r.id}" title="Edit">✎</button>
       </span></div>`;
   };
-  return `<div style="margin-bottom:14px;"><button class="btn ghost" id="btnAddRt">+ Add routine</button>
-    <span style="font-size:12px;color:var(--muted);margin-left:10px;">Standing duties that must never get buried — flagged when their cadence lapses.</span></div>
+  return `<div style="margin-bottom:14px;"><button class="btn ghost" id="btnAddRt">+ Add regular duty</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:10px;">Each person’s standing duties (VAT, payroll, audits…) — flagged when their cadence lapses so they never get buried.</span></div>
     ${groups.map(e=>`<div class="panel rt-group"><h2><span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}</span>
       <span class="h-sub">${esc(e.role||"")}</span></h2>
       ${routines.filter(r=>r.employee_id===e.id).map(rowHTML).join("")}</div>`).join("")}
     ${orphans.length?`<div class="panel rt-group"><h2>Unowned</h2>${orphans.map(rowHTML).join("")}</div>`:""}
-    ${!routines.length?'<div class="empty">No routines yet — add each person’s regular duties (VAT, payroll, audits…).</div>':""}`;
+    ${!routines.length?'<div class="empty">No regular duties yet — add each person’s (VAT, payroll, audits…).</div>':""}`;
 }
 
 /* ---- Activity ---- */
@@ -810,29 +844,30 @@ function vSettings(){
   return `<div class="panel"><h2>Sites / branches <span class="h-sub">used for the 📍 tag and +site quick-add shortcut</span></h2>
       <div class="site-tag-list">${sites.map((s,ix)=>`<span class="site-tag">${esc(s)}<button data-rm-site="${ix}" title="Remove">×</button></span>`).join("")}
         <span class="site-tag" style="background:var(--surface);"><input id="newSite" placeholder="Add site…" style="border:none;outline:none;background:transparent;width:110px;font-size:12.5px;"></span></div></div>
-    <div class="panel"><h2>Employees <span class="h-sub">shared with your pharmacy-hr system · click ✎ to edit or remove</span></h2>
+    <div class="panel"><h2>How urgency works</h2>
+      <div style="padding:12px 16px;font-size:13px;color:var(--ink-2);line-height:1.8;">
+        <div>Every task needs a <b>deadline</b>. The traffic light is set automatically from it:</div>
+        ${ORDER.map(k=>`<div>${chip(k)} <span style="color:var(--muted);font-size:12px;">— ${STATUSES[k].band}</span></div>`).join("")}
+        <div style="margin-top:8px;">To change a task’s urgency, change its deadline. Tick ✓ on a card (or drag it to Green) to complete it. Repeating tasks re-schedule themselves when completed.</div>
+        <div>Quadrants: <b>${QUADS.iu.label}</b> (${QUADS.iu.sub}) · <b>${QUADS.inu.label}</b> (${QUADS.inu.sub}) · <b>${QUADS.niu.label}</b> (${QUADS.niu.sub}) · <b>${QUADS.ninu.label}</b> (${QUADS.ninu.sub})</div>
+      </div></div>
+    <div class="panel"><h2>Employees <span class="h-sub">shared with your pharmacy-hr system · click a name in the sidebar for their profile</span></h2>
       <div style="padding:6px 0;">${employees.map(e=>`<div class="rt-row">
         <span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}</span>
         <span class="rt-notes">${esc(e.role||"")}</span>
-        <span class="rt-actions"><button class="icon-btn" data-edit-emp="${e.id}" title="Edit">✎</button></span></div>`).join("")}</div>
-      <div style="padding:8px 16px 14px;"><button class="btn ghost tiny" id="btnAddEmp">+ Add employee</button></div></div>
-    <div class="panel"><h2>How the lights work</h2>
-      <div style="padding:12px 16px;font-size:13px;color:var(--ink-2);line-height:1.7;">
-        ${ORDER.map(k=>`<div>${chip(k)}</div>`).join("")}
-        <div style="margin-top:8px;">💤 A task untouched for ${STALE_SOFT}+ days shows a stale marker; ${STALE_HARD}+ days gets a red dashed outline — so the lights stay honest without anyone policing them.</div>
-        <div>Quadrants: <b>${QUADS.iu.label}</b> (${QUADS.iu.sub}) · <b>${QUADS.inu.label}</b> (${QUADS.inu.sub}) · <b>${QUADS.niu.label}</b> (${QUADS.niu.sub}) · <b>${QUADS.ninu.label}</b> (${QUADS.ninu.sub})</div>
-      </div></div>`;
+        <span class="rt-actions"><button class="icon-btn" data-edit-emp="${e.id}" title="Edit or remove">✎</button></span></div>`).join("")}</div>
+      <div style="padding:8px 16px 14px;"><button class="btn ghost tiny" id="btnAddEmp">+ Add employee</button></div></div>`;
 }
 
 /* ================= Wiring ================= */
 function wire(c){
   c.querySelectorAll("[data-goto-status]").forEach(el=>el.onclick=()=>{ $("fStatus").value=el.dataset.gotoStatus; $("fDue").value=""; view="list"; render(); });
-  c.querySelectorAll("[data-goto-due]").forEach(el=>el.onclick=()=>{ $("fDue").value=el.dataset.gotoDue; $("fStatus").value=""; view="list"; render(); });
-  c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ $("fEmp").value=el.dataset.gotoEmp; view="owners"; render(); });
   c.querySelectorAll("[data-goto-view]").forEach(el=>el.onclick=()=>{ view=el.dataset.gotoView; render(); });
+  c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ view="profile"; profileEmp=el.dataset.gotoEmp; render(); });
   c.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openTask(el.dataset.open));
+  c.querySelectorAll("[data-done]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleDone(el.dataset.done); });
   c.querySelectorAll(".card").forEach(el=>{
-    el.onclick=ev=>{ if(ev.target.dataset.lb) return; openTask(el.dataset.id); };
+    el.onclick=ev=>{ if(ev.target.dataset.lb || ev.target.dataset.done) return; openTask(el.dataset.id); };
     el.ondragstart=ev=>{ ev.dataTransfer.setData("text/plain", el.dataset.id); ev.dataTransfer.effectAllowed="move"; };
   });
   c.querySelectorAll("img[data-lb]").forEach(img=>img.onclick=ev=>{ ev.stopPropagation(); showLightbox(img.src); });
@@ -840,7 +875,11 @@ function wire(c){
     col.ondragover=ev=>{ ev.preventDefault(); col.classList.add("dragover"); };
     col.ondragleave=()=>col.classList.remove("dragover");
     col.ondrop=ev=>{ ev.preventDefault(); col.classList.remove("dragover");
-      const id=ev.dataTransfer.getData("text/plain"); if(id) changeStatus(id, col.dataset.col); };
+      const id=ev.dataTransfer.getData("text/plain"); if(!id) return;
+      const t=tasks.find(x=>x.id===id); if(!t) return;
+      if (col.dataset.col==="green"){ if(t.status!=="green") completeTask(id); }
+      else if (t.status==="green"){ reopenTask(id); }
+      else { toast("Urgency follows the deadline — change the task’s deadline instead"); openTask(id); } };
   });
   c.querySelectorAll("[data-quad]").forEach(cell=>{
     cell.ondragover=ev=>{ ev.preventDefault(); cell.classList.add("dragover"); };
@@ -848,21 +887,20 @@ function wire(c){
     cell.ondrop=ev=>{ ev.preventDefault(); cell.classList.remove("dragover");
       const id=ev.dataTransfer.getData("text/plain"); if(id) changeQuadrant(id, cell.dataset.quad || null); };
   });
-  c.querySelectorAll("[data-add-status]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); openTask(null, {status:el.dataset.addStatus}); });
-  c.querySelectorAll("[data-add-emp]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); openTask(null, {employee_id:el.dataset.addEmp}); });
+  c.querySelectorAll("[data-add-task]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); openTask(null); });
+  c.querySelectorAll("[data-add-emp-task]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); openTask(null, {employee_id:el.dataset.addEmpTask}); });
   c.querySelectorAll("th.sortable").forEach(th=>th.onclick=()=>{
     if(sortKey===th.dataset.sort) sortAsc=!sortAsc; else {sortKey=th.dataset.sort; sortAsc=true;} render(); });
   c.querySelectorAll("[data-rt]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); openRoutine(el.dataset.rt); });
   c.querySelectorAll("[data-rt-done]").forEach(el=>el.onclick=async ev=>{ ev.stopPropagation();
     const r=routines.find(x=>x.id===el.dataset.rtDone); if(!r) return;
     try{ await api(`/tb_routines?id=eq.${r.id}`, {method:"PATCH", body:JSON.stringify({last_done:todayStr(), last_done_by:meName()})});
-      await logActivity("routine done ✓", null, r.title+" ("+empName(r.employee_id)+")");
+      await logActivity("regular duty done ✓", null, r.title+" ("+empName(r.employee_id)+")");
       toast("“"+r.title+"” marked done"); await loadAll(true);
     }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }});
   const ar=$("btnAddRt"); if(ar) ar.onclick=()=>openRoutine(null);
   const ae=$("btnAddEmp"); if(ae) ae.onclick=()=>openEmployee(null);
-  c.querySelectorAll("[data-add-employee-btn]").forEach(el=>el.onclick=()=>openEmployee(null));
-  c.querySelectorAll("[data-edit-emp]").forEach(el=>el.onclick=()=>openEmployee(el.dataset.editEmp));
+  c.querySelectorAll("[data-edit-emp]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); openEmployee(el.dataset.editEmp); });
   c.querySelectorAll("[data-rm-site]").forEach(el=>el.onclick=async ()=>{
     const ix=+el.dataset.rmSite; const removed=sites[ix];
     sites.splice(ix,1); await saveSites("removed site "+removed); });
@@ -870,6 +908,7 @@ function wire(c){
     if(e.key==="Enter" && ns.value.trim()){ sites.push(ns.value.trim()); await saveSites("added site "+ns.value.trim()); }});
 }
 ["q","fEmp","fStatus","fQuad","fSite","fDue"].forEach(id=>$(id).addEventListener("input",render));
+$("teamAdd").onclick=()=>openEmployee(null);
 async function saveSites(what){
   try{ await api("/tb_settings?key=eq.sites", {method:"PATCH", body:JSON.stringify({value:sites, updated_at:new Date().toISOString()})});
     await logActivity("settings", null, what); await loadAll(true);
@@ -877,25 +916,38 @@ async function saveSites(what){
 }
 
 /* ================= Mutations ================= */
-async function changeStatus(id, status){
+async function completeTask(id){
   const t = tasks.find(x=>x.id===id);
-  if (!t || t.status===status) return;
-  const old = t.status;
+  if (!t || t.status==="green") return;
   try {
-    if (status==="green" && t.recurrence && t.recurrence!=="none") {
+    if (t.recurrence && t.recurrence!=="none") {
       const nd = nextDue(t.due_date, t.recurrence);
       const cl = (Array.isArray(t.checklist)?t.checklist:[]).map(i=>({...i, done:false}));
       await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({
         status:"amber", due_date: nd, checklist: cl, completed_at: null }))});
-      await logActivity("completed ✓ (repeats "+t.recurrence+")", t, "next due "+fmtDate(nd));
+      await logActivity("completed ✓ (repeats "+t.recurrence+")", t, "next deadline "+fmtDate(nd));
       toast(`“${t.title}” done ✓ — rescheduled for ${fmtDate(nd)}`);
     } else {
       await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({
-        status, completed_at: status==="green"? new Date().toISOString(): null }))});
-      await logActivity(`status: ${STATUSES[old].label} → ${STATUSES[status].label}`, t);
+        status:"green", completed_at: new Date().toISOString() }))});
+      await logActivity("completed ✓", t);
     }
     await loadAll(true);
   } catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
+}
+async function reopenTask(id){
+  const t = tasks.find(x=>x.id===id);
+  if (!t || t.status!=="green") return;
+  try {
+    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({ status:"amber", completed_at:null }))});
+    await logActivity("reopened", t);
+    await loadAll(true);
+  } catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
+}
+function toggleDone(id){
+  const t = tasks.find(x=>x.id===id);
+  if (!t) return;
+  if (t.status==="green") reopenTask(id); else completeTask(id);
 }
 async function changeQuadrant(id, quad){
   const t = tasks.find(x=>x.id===id);
@@ -909,7 +961,7 @@ async function changeQuadrant(id, quad){
 
 /* ================= Quick add ================= */
 function parseQuick(text){
-  const out = {title:"", status:"amber", quadrant:null, employee_id:null, site:null};
+  const out = {title:"", status:"amber", quadrant:null, employee_id:null, site:null, due_date:null};
   const words = [];
   text.split(/\s+/).forEach(w=>{
     const lw = w.toLowerCase();
@@ -919,7 +971,11 @@ function parseQuick(text){
              || employees.find(e=>e.full_name.toLowerCase().replace(/\s+/g,"").includes(key));
       if (m){ out.employee_id = m.id; return; }
     }
-    if (lw.startsWith("#") && STATUSES[lw.slice(1)]){ out.status = lw.slice(1); return; }
+    if (lw.startsWith("~") && lw.length>1){
+      const v = lw.slice(1);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)){ out.due_date = v; return; }
+      if (/^\d+$/.test(v)){ out.due_date = plusDays(+v); return; }
+    }
     if (lw.startsWith("!") && QUADS[lw.slice(1)]){ out.quadrant = lw.slice(1); return; }
     if (lw.startsWith("+") && lw.length>1){
       const key = lw.slice(1);
@@ -929,6 +985,7 @@ function parseQuick(text){
     words.push(w);
   });
   out.title = words.join(" ").trim();
+  if (!out.due_date) out.due_date = plusDays(DEFAULT_DEADLINE_DAYS);
   return out;
 }
 $("quickAdd").addEventListener("keydown", async e=>{
@@ -941,9 +998,9 @@ $("quickAdd").addEventListener("keydown", async e=>{
     const rows = await api("/tb_tasks", {method:"POST", body:JSON.stringify({ ...p, touched_by: meName() })});
     const nt = rows && rows[0];
     await logActivity("created (quick add)", nt||{id:null,title:p.title},
-      [p.employee_id?("→ "+empName(p.employee_id)):null, p.site, p.quadrant?QUADS[p.quadrant].label:null].filter(Boolean).join(" · "));
+      [p.employee_id?("→ "+empName(p.employee_id)):null, "deadline "+fmtDate(p.due_date), p.site, p.quadrant?QUADS[p.quadrant].label:null].filter(Boolean).join(" · "));
     e.target.value="";
-    toast("Added: "+p.title+(p.employee_id?" → "+empName(p.employee_id):""));
+    toast("Added: "+p.title+" — deadline "+fmtDate(p.due_date)+(p.employee_id?" → "+empName(p.employee_id):""));
     await loadAll(true);
   }catch(err){ console.error(err); setOnline(false); toast("Couldn’t save — check connection"); }
 });
@@ -967,7 +1024,7 @@ function openTask(id, preset){
   const t = id ? tasks.find(x=>x.id===id) : null;
   editing = t ? JSON.parse(JSON.stringify(t)) : {
     id: crypto.randomUUID(), _new:true, title:"", description:"", employee_id:(preset&&preset.employee_id)||"",
-    status:(preset&&preset.status)||"amber", quadrant:null, site:"", due_date:"", recurrence:"none",
+    status:"amber", quadrant:null, site:"", due_date:plusDays(DEFAULT_DEADLINE_DAYS), recurrence:"none",
     waiting_on:"", checklist:[], links:[], images:[]
   };
   if (!Array.isArray(editing.checklist)) editing.checklist=[];
@@ -982,16 +1039,20 @@ function openTask(id, preset){
   $("mDesc").value = editing.description||"";
   $("mDelete").style.display = t? "" : "none";
   $("mMeta").textContent = t? ("Created "+fmtWhen(t.created_at)+(t.touched_by?` · last touched by ${t.touched_by}`:"")) : "New task";
-  renderStatusPicker(); renderQuadPicker(); renderChecklist(); renderLinks(); renderPhotos();
+  renderUrgencyPreview(); renderQuadPicker(); renderChecklist(); renderLinks(); renderPhotos();
   $("taskPanel").classList.add("open");
   $("mTitle").focus();
 }
 function closeTask(){ $("taskPanel").classList.remove("open"); editing=null; }
-function renderStatusPicker(){
-  $("mStatus").innerHTML = ORDER.map(k=>
-    `<button type="button" class="${editing.status===k?'sel '+k:''}" data-s="${k}">${ICONS[k]}${STATUSES[k].label}</button>`).join("");
-  $("mStatus").querySelectorAll("button").forEach(b=>b.onclick=()=>{ editing.status=b.dataset.s; renderStatusPicker(); });
+function renderUrgencyPreview(){
+  if (!editing) return;
+  const probe = { status: editing.status, due_date: $("mDue").value || null };
+  const u = urgency(probe);
+  $("mUrgency").innerHTML = chip(u) + ` <span class="m-meta">${probe.due_date? STATUSES[u].band : "set a deadline — required"}</span>`;
+  $("mComplete").textContent = editing.status==="green" ? "↩ Reopen" : "✓ Mark completed";
 }
+$("mDue").addEventListener("input", renderUrgencyPreview);
+$("mComplete").onclick=()=>{ if(!editing) return; editing.status = editing.status==="green" ? "amber" : "green"; renderUrgencyPreview(); };
 function renderQuadPicker(){
   $("mQuad").innerHTML = Object.keys(QUADS).map(k=>
     `<button type="button" class="${editing.quadrant===k?'sel':''}" data-q="${k}" title="${QUADS[k].sub}">${QUADS[k].label}</button>`).join("")
@@ -1050,29 +1111,44 @@ $("taskScrim").onclick=closeTask;
 $("mSave").onclick=async ()=>{
   const title=$("mTitle").value.trim();
   if(!title){ toast("Give the task a name first"); $("mTitle").focus(); return; }
+  if(!$("mDue").value){ toast("Every task needs a deadline — set the date"); $("mDue").focus(); return; }
   const payload={ title, description:$("mDesc").value, employee_id:$("mEmp").value||null,
-    status:editing.status, quadrant:editing.quadrant, site:$("mSite").value||null,
-    due_date:$("mDue").value||null, recurrence:$("mRec").value, waiting_on:$("mWait").value.trim(),
+    status:editing.status==="green" ? "green" : "amber", quadrant:editing.quadrant, site:$("mSite").value||null,
+    due_date:$("mDue").value, recurrence:$("mRec").value, waiting_on:$("mWait").value.trim(),
     checklist:editing.checklist, links:editing.links, images:editing.images,
     updated_at:new Date().toISOString(), touched_by: meName() };
   try{
     if (!editing._new){
       const before = tasks.find(x=>x.id===editing.id) || {};
-      if (payload.status==="green" && before.status!=="green") payload.completed_at=new Date().toISOString();
-      if (payload.status!=="green") payload.completed_at=null;
-      await api(`/tb_tasks?id=eq.${editing.id}`, {method:"PATCH", body:JSON.stringify(payload)});
-      const changes=[];
-      if (before.status!==payload.status) changes.push(`light → ${STATUSES[payload.status].label}`);
-      if ((before.employee_id||null)!==payload.employee_id) changes.push(`assigned to ${payload.employee_id?empName(payload.employee_id):"nobody"}`);
-      if ((before.due_date||null)!==(payload.due_date||null)) changes.push(payload.due_date?`due ${fmtDate(payload.due_date)}`:"due date removed");
-      if ((before.quadrant||null)!==(payload.quadrant||null)) changes.push("quadrant → "+(payload.quadrant?QUADS[payload.quadrant].label:"untriaged"));
-      await logActivity("updated", {id:editing.id,title}, changes.join(", "));
-      toast("Task saved");
+      const nowGreen = payload.status==="green" && before.status!=="green";
+      if (nowGreen && payload.recurrence!=="none"){
+        // completing a repeating task from the editor: reschedule it
+        payload.status="amber"; payload.completed_at=null;
+        payload.due_date = nextDue(payload.due_date, payload.recurrence);
+        payload.checklist = payload.checklist.map(i=>({...i, done:false}));
+        await api(`/tb_tasks?id=eq.${editing.id}`, {method:"PATCH", body:JSON.stringify(payload)});
+        await logActivity("completed ✓ (repeats "+payload.recurrence+")", {id:editing.id,title}, "next deadline "+fmtDate(payload.due_date));
+        toast(`Done ✓ — rescheduled for ${fmtDate(payload.due_date)}`);
+      } else {
+        if (nowGreen) payload.completed_at=new Date().toISOString();
+        if (payload.status!=="green") payload.completed_at=null;
+        await api(`/tb_tasks?id=eq.${editing.id}`, {method:"PATCH", body:JSON.stringify(payload)});
+        const changes=[];
+        if (nowGreen) changes.push("completed ✓");
+        if (before.status==="green" && payload.status!=="green") changes.push("reopened");
+        if ((before.employee_id||null)!==payload.employee_id) changes.push(`assigned to ${payload.employee_id?empName(payload.employee_id):"nobody"}`);
+        if ((before.due_date||null)!==(payload.due_date||null)) changes.push(`deadline ${fmtDate(payload.due_date)}`);
+        if ((before.quadrant||null)!==(payload.quadrant||null)) changes.push("quadrant → "+(payload.quadrant?QUADS[payload.quadrant].label:"untriaged"));
+        await logActivity("updated", {id:editing.id,title}, changes.join(", "));
+        toast("Task saved");
+      }
     } else {
       payload.id = editing.id;
+      if (payload.status==="green") payload.completed_at=new Date().toISOString();
       const rows = await api("/tb_tasks", {method:"POST", body:JSON.stringify(payload)});
       const nt = rows && rows[0];
-      await logActivity("created", nt||{id:editing.id,title}, payload.employee_id? "assigned to "+empName(payload.employee_id) : "unassigned");
+      await logActivity("created", nt||{id:editing.id,title},
+        (payload.employee_id? "assigned to "+empName(payload.employee_id) : "unassigned")+" · deadline "+fmtDate(payload.due_date));
       toast("Task created");
     }
     closeTask();
@@ -1127,6 +1203,7 @@ $("eRemove").onclick=async ()=>{
     await api(`/hr_employees?id=eq.${editingEmp.id}`, {method:"PATCH", body:JSON.stringify({ active:false })});
     await logActivity("employee removed", null, editingEmp.full_name);
     $("empOverlay").classList.remove("open");
+    if (view==="profile" && profileEmp===editingEmp.id){ view="dashboard"; profileEmp=null; }
     toast(editingEmp.full_name+" removed");
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t remove — check connection"); }
@@ -1136,9 +1213,10 @@ $("eRemove").onclick=async ()=>{
 let editingRt = null;
 function openRoutine(id){
   editingRt = id ? routines.find(r=>r.id===id) : null;
-  $("rTitle").textContent = editingRt? "Edit routine" : "Add routine";
+  $("rTitle").textContent = editingRt? "Edit regular duty" : "Add regular duty";
   $("rName").value = editingRt? editingRt.title : "";
   if (editingRt) $("rEmp").value = editingRt.employee_id || "";
+  else if (view==="profile" && profileEmp) $("rEmp").value = profileEmp;
   $("rCad").value = editingRt? editingRt.cadence : "weekly";
   $("rLast").value = editingRt? (editingRt.last_done||"") : "";
   $("rNotes").value = editingRt? (editingRt.notes||"") : "";
@@ -1155,33 +1233,34 @@ $("rSave").onclick=async ()=>{
   try{
     if (editingRt) await api(`/tb_routines?id=eq.${editingRt.id}`, {method:"PATCH", body:JSON.stringify(payload)});
     else await api("/tb_routines", {method:"POST", body:JSON.stringify(payload)});
-    await logActivity(editingRt?"routine updated":"routine added", null, title+" ("+empName(payload.employee_id)+", "+payload.cadence+")");
+    await logActivity(editingRt?"regular duty updated":"regular duty added", null, title+" ("+empName(payload.employee_id)+", "+payload.cadence+")");
     $("rtOverlay").classList.remove("open");
-    toast("Routine saved");
+    toast("Saved");
     await loadAll(true);
-  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save routine — check connection"); }
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
 };
 $("rDelete").onclick=async ()=>{
   if(!editingRt) return;
   try{
     await api(`/tb_routines?id=eq.${editingRt.id}`, {method:"DELETE"});
-    await logActivity("routine deleted", null, editingRt.title);
+    await logActivity("regular duty deleted", null, editingRt.title);
     $("rtOverlay").classList.remove("open");
-    toast("Routine deleted");
+    toast("Deleted");
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete — check connection"); }
 };
 
 /* ================= Top buttons ================= */
-$("btnNew").onclick=()=>openTask(null);
+$("btnNew").onclick=()=>openTask(null, view==="profile" && profileEmp ? {employee_id:profileEmp} : null);
 $("btnPrint").onclick=()=>window.print();
 $("btnExport").onclick=()=>{
-  const head=["Title","Light","Meaning","Quadrant","Owner","Site","Due date","Overdue","Waiting on","Repeats","Checklist done","Checklist total","Photos","Description","Links","Last touched","Touched by","Created","Completed"];
+  const head=["Title","Urgency","Meaning","Quadrant","Owner","Site","Deadline","Past deadline","Waiting on","Repeats","Checklist done","Checklist total","Photos","Description","Links","Last touched","Touched by","Created","Completed"];
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const lines=[head.join(",")];
   tasks.forEach(t=>{
+    const u=urgency(t);
     const cl=Array.isArray(t.checklist)?t.checklist:[];
-    lines.push([q(t.title), t.status, STATUSES[t.status].meaning, t.quadrant?QUADS[t.quadrant].label:"", q(empName(t.employee_id)), q(t.site||""), t.due_date||"", isOverdue(t)?"YES":"", q(t.waiting_on||""), t.recurrence||"",
+    lines.push([q(t.title), u, STATUSES[u].meaning, t.quadrant?QUADS[t.quadrant].label:"", q(empName(t.employee_id)), q(t.site||""), t.due_date||"", isOverdue(t)?"YES":"", q(t.waiting_on||""), t.recurrence||"",
       cl.filter(i=>i.done).length, cl.length, (t.images||[]).length, q(t.description||""), q((t.links||[]).map(l=>l.url).join(" ")),
       (t.updated_at||"").slice(0,16).replace("T"," "), q(t.touched_by||""), (t.created_at||"").slice(0,10), (t.completed_at||"").slice(0,10)].join(","));
   });
