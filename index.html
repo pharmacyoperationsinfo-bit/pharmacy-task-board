@@ -346,6 +346,9 @@
   .ne-toolbar button{padding:4px 10px; border-radius:6px; font-size:12.5px; color:var(--ink-2);}
   .ne-toolbar button:hover{background:var(--surface-2); color:var(--ink);}
   .ne-sep{width:1px; height:18px; background:var(--line); margin:0 5px;}
+  .hl-dot{width:17px; height:17px; border-radius:5px; border:1px solid rgba(11,11,11,.22); padding:0; vertical-align:middle;}
+  .hl-dot:hover{transform:scale(1.15); border-color:rgba(11,11,11,.5);}
+  .hl-none{background:var(--surface); font-size:9px; color:var(--muted); display:inline-flex; align-items:center; justify-content:center;}
   .ne-body{flex:1; overflow-y:auto; outline:none; font-size:14.5px; line-height:1.55; padding:8px 4px;}
   .ne-body:empty::before{content:"Write anything — Heading, Subheading, Body, checklists, paste photos & files…"; color:var(--muted);}
   .ne-body img{max-width:100%; border-radius:6px; display:block; margin:4px 0;}
@@ -462,6 +465,10 @@
         <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
         <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
         <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:5px;">HL</button>
+        <button type="button" class="hl-dot" data-ne="hl:#b9f6ca" style="background:#b9f6ca" title="Green highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#ffcdd2" style="background:#ffcdd2" title="Pink highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#b3e5fc" style="background:#b3e5fc" title="Blue highlight"></button>
+        <button type="button" class="hl-dot hl-none" data-ne="hl:none" title="Remove highlight">✕</button>
         <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">•&nbsp;List</button>
         <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1.&nbsp;List</button>
         <button type="button" data-ne="clear" title="Clear formatting">Clear</button>
@@ -535,6 +542,12 @@
       <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
       <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
       <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:6px;">HL</button>
+        <button type="button" class="hl-dot" data-ne="hl:#fff176" style="background:#fff176" title="Yellow highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#b9f6ca" style="background:#b9f6ca" title="Green highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#ffcdd2" style="background:#ffcdd2" title="Pink highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#b3e5fc" style="background:#b3e5fc" title="Blue highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#ffe0b2" style="background:#ffe0b2" title="Orange highlight"></button>
+        <button type="button" class="hl-dot hl-none" data-ne="hl:none" title="Remove highlight">✕</button>
       <span class="ne-sep"></span>
       <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">• List</button>
       <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1. List</button>
@@ -902,6 +915,12 @@ function vProfile(){
         <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
         <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
         <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:6px;">HL</button>
+        <button type="button" class="hl-dot" data-ne="hl:#fff176" style="background:#fff176" title="Yellow highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#b9f6ca" style="background:#b9f6ca" title="Green highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#ffcdd2" style="background:#ffcdd2" title="Pink highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#b3e5fc" style="background:#b3e5fc" title="Blue highlight"></button>
+        <button type="button" class="hl-dot" data-ne="hl:#ffe0b2" style="background:#ffe0b2" title="Orange highlight"></button>
+        <button type="button" class="hl-dot hl-none" data-ne="hl:none" title="Remove highlight">✕</button>
         <span class="ne-sep"></span>
         <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">• List</button>
         <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1. List</button>
@@ -1129,6 +1148,11 @@ function applyCmd(cmd){
       document.execCommand("hiliteColor", false, on ? "transparent" : "#fff176");
       break;
     }
+    default:
+      if (cmd && cmd.startsWith("hl:")){
+        const c = cmd.slice(3);
+        document.execCommand("hiliteColor", false, c==="none" ? "transparent" : c);
+      }
   }
 }
 function richAutosave(t){
