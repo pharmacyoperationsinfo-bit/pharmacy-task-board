@@ -295,7 +295,16 @@
   body.profile-mode .notes-scroll{height:70vh;}
   .np-panel{margin-bottom:10px; padding:0 14px 4px;}
   .np-toolbar{padding-top:8px;}
-  .np-body{min-height:calc(100vh - 250px); font-size:14.5px; padding:10px 6px 20px;}
+  .np-wrap{display:flex; align-items:stretch; gap:0;}
+  .np-canvas{position:relative; flex:1; min-width:0; overflow-y:auto; height:calc(100vh - 190px);}
+  .np-canvas .snote{z-index:5;}
+  .np-tasks{flex:0 0 300px; border-left:1px solid var(--line); padding:10px 0 10px 14px; margin-left:12px;
+    overflow-y:auto; height:calc(100vh - 190px); font-size:12.5px;}
+  .np-tasks .card{margin-bottom:6px;}
+  .np-tasks .pg-head{padding:6px 2px 6px;}
+  @media (max-width:900px){ .np-wrap{flex-direction:column;} .np-canvas,.np-tasks{height:auto; min-height:340px;}
+    .np-tasks{border-left:none; border-top:1px solid var(--line); margin-left:0; padding-left:0;} }
+  .np-body{min-height:calc(100vh - 210px); font-size:14.5px; padding:10px 6px 20px;}
   .np-body:empty::before{content:attr(data-placeholder); color:var(--muted);}
   .notes-panel summary::-webkit-details-marker{display:none;}
   .notes-panel summary:hover{background:var(--surface-2);}
@@ -880,7 +889,6 @@ function vProfile(){
       <span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>
       <div><div class="p-name">${esc(e.full_name)}</div><div class="p-role">${esc(e.role||"Team member")} · ${open.length} open task${open.length===1?"":"s"}${myNotes.length?` · 📌 ${myNotes.length} note${myNotes.length===1?"":"s"}`:""}</div></div>
       <div class="spacer"></div>
-      <button class="btn ghost tiny" data-add-note="${e.id}">📌 + Sticky note</button>
       <button class="btn ghost tiny" data-edit-emp="${e.id}">✎ Edit</button>
       <button class="btn primary tiny" data-add-emp-task="${e.id}">+ Add task</button>
     </div>
@@ -900,26 +908,32 @@ function vProfile(){
         <button type="button" data-ne="chk" title="Checklist — Cmd/Ctrl+Shift+L">☑ Check</button>
         <span class="ne-sep"></span>
         <button type="button" id="npAttach" title="Attach photo / file / zip">📎 Attach</button>
+        <button type="button" data-add-note="${e.id}" title="Drop a sticky note onto this page">📌 Sticky note</button>
         <div class="spacer"></div>
         <span class="m-meta">${(()=>{const p=notepads.find(x=>x.employee_id===e.id); return p&&p.updated_at? "saved "+fmtWhen(p.updated_at)+(p.updated_by?" · "+esc(p.updated_by.split(" ")[0]):"") : "saves automatically";})()}</span>
       </div>
-      <div class="ne-body rich-target np-body" id="npBody" contenteditable="true" data-emp="${e.id}"
-        data-placeholder="Type straight away — notes for ${esc(e.full_name)}. Heading / Subheading / Body, checklists, paste photos, files & zips…">${sanitizeHtml((notepads.find(x=>x.employee_id===e.id)||{}).content||"")}</div>
-    </div>
-    <details class="panel notes-panel" ${myNotes.length?"open":""}><summary style="font-size:13px;font-weight:700;padding:10px 14px;cursor:pointer;">📌 Sticky notes (${myNotes.length}) <span class="h-sub" style="font-weight:500;">double-click the board to write · drag · ⤢ full screen · ✓ when dealt with</span></summary>
-      <div class="notes-scroll"><div class="notes-canvas" id="notesCanvas" style="width:${canvasW}px;height:${canvasH}px;">
-        ${myNotes.map(noteHTML).join("") || '<div class="empty notes-empty">No sticky notes — double-click anywhere here to write one for ' + esc(e.full_name) + ', or paste text/a screenshot straight onto the board.</div>'}
-      </div></div></details>
-    ${rts.length?`<div class="routine-strip" style="margin-bottom:16px;"><div class="rs-head">Regular cadence</div>
-      ${rts.map(r=>{const st=routineState(r);
-        return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}, ${r.last_done?'last done '+fmtDate(r.last_done):'never done'}">
-          <span class="sdot" style="background:${st.cls==='over'?'var(--red)':st.cls==='soon'?'var(--amber)':'var(--green)'}"></span>
-          ${esc(r.title)} <span class="rt-cad">${r.cadence}</span>
-          <span class="rs-due">${st.cls==='over'?'due — mark done?':st.cls==='soon'?'due soon':'ok'}</span>
-          <button class="btn ghost tiny" data-rt-done="${r.id}" style="margin-left:8px;">✓</button></div>`;}).join("")}</div>`:""}
-    ${open.length ? ORDER.slice(0,3).map(group).join("") : '<div class="empty">No open tasks — add one with the button above or the quick-add bar.</div>'}
-    ${completed.length?`<div class="p-group"><div class="pg-head" style="color:var(--green)">${statusDot("green")}
-      <span style="color:var(--ink)">Recently completed</span></div>${completed.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}`;
+      <div class="np-wrap">
+        <div class="np-canvas" id="notesCanvas">
+          <div class="ne-body rich-target np-body" id="npBody" contenteditable="true" data-emp="${e.id}"
+            data-placeholder="Type straight away — notes for ${esc(e.full_name)}. Heading / Subheading / Body, checklists, paste photos, files & zips… Sticky notes float on top.">${sanitizeHtml((notepads.find(x=>x.employee_id===e.id)||{}).content||"")}</div>
+          ${myNotes.map(noteHTML).join("")}
+        </div>
+        <div class="np-tasks">
+          ${rts.length?`<div class="rs-head" style="padding:2px 0 4px;">Regular cadence</div>
+            ${rts.map(r=>{const st=routineState(r);
+              return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}">
+                <span class="sdot" style="background:${st.cls==='over'?'var(--red)':st.cls==='soon'?'var(--amber)':'var(--green)'}"></span>
+                ${esc(r.title)}<span class="rs-due">${st.cls==='over'?'due':st.cls==='soon'?'soon':'ok'}</span>
+                <button class="btn ghost tiny" data-rt-done="${r.id}" style="margin-left:6px;padding:1px 6px;">✓</button></div>`;}).join("")}
+            <div style="border-top:1px solid var(--line);margin:8px 0;"></div>`:""}
+          <div class="rs-head" style="padding:2px 0 6px;display:flex;align-items:center;">Tasks · ${open.length} open
+            <button class="btn ghost tiny" data-add-emp-task="${e.id}" style="margin-left:auto;padding:1px 8px;">＋</button></div>
+          ${open.length ? ORDER.slice(0,3).map(group).join("") : '<div class="empty" style="padding:14px 4px;">No open tasks</div>'}
+          ${completed.length?`<div class="p-group"><div class="pg-head" style="color:var(--green)">${statusDot("green")}
+            <span style="color:var(--ink)">Completed</span></div>${completed.slice(0,5).map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}
+        </div>
+      </div>
+    </div>`;
 }
 
 /* ---- Board ---- */
@@ -1361,9 +1375,9 @@ function wireNotes(c){
     }catch(e){ console.error(e); setOnline(false); toast("Couldn’t add note"); }
   });
   if (!canvas) return;
-  /* double-click an empty spot → new note right there, ready to type */
+  /* double-click an empty spot → new note right there, ready to type (disabled over the typing area) */
   canvas.ondblclick = async ev => {
-    if (ev.target.closest(".snote")) return;
+    if (ev.target.closest(".snote") || ev.target.closest("#npBody")) return;
     const cr = canvas.getBoundingClientRect();
     const x = Math.max(0, Math.min(ev.clientX - cr.left - 20, cr.width - 212));
     const y = Math.max(0, ev.clientY - cr.top - 10);
@@ -1431,8 +1445,8 @@ function wireNotes(c){
       const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
       noteDragging = true;
       const move = e2 => {
-        let x = e2.clientX - cr.left - dx, y = e2.clientY - cr.top - dy;
-        x = Math.max(0, Math.min(x, cr.width - 212)); y = Math.max(0, y);
+        let x = e2.clientX - cr.left - dx + canvas.scrollLeft, y = e2.clientY - cr.top - dy + canvas.scrollTop;
+        x = Math.max(0, Math.min(x, canvas.clientWidth - 212)); y = Math.max(0, y);
         el.style.left = x+"px"; el.style.top = y+"px";
       };
       const up = () => {
