@@ -292,7 +292,13 @@
   .notes-scroll{overflow:auto; height:calc(100vh - 300px); min-height:440px; overscroll-behavior:contain;}
   /* profile view = full window: no quick-add bar, no filter bar */
   body.profile-mode .quickbar, body.profile-mode .topbar{display:none;}
-  body.profile-mode .notes-scroll{height:calc(100vh - 175px);}
+  body.profile-mode .notes-scroll{height:70vh;}
+  .np-panel{margin-bottom:10px; padding:0 14px 4px;}
+  .np-toolbar{padding-top:8px;}
+  .np-body{min-height:calc(100vh - 250px); font-size:14.5px; padding:10px 6px 20px;}
+  .np-body:empty::before{content:attr(data-placeholder); color:var(--muted);}
+  .notes-panel summary::-webkit-details-marker{display:none;}
+  .notes-panel summary:hover{background:var(--surface-2);}
   .notes-canvas{position:relative; background:var(--surface);
     background-image:radial-gradient(var(--line) 1px, transparent 1px); background-size:22px 22px;}
   .notes-empty{position:absolute; left:40px; top:150px; width:520px; text-align:left; pointer-events:none; padding:0;}
@@ -577,7 +583,8 @@ const CAD_DAYS = {daily:1, weekly:7, monthly:31, quarterly:92, yearly:366};
 const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","#c98500","#d03b3b"];
 
 /* ================= State ================= */
-let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [];
+let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], notepads = [];
+let focusNotepad = false;
 let view = "dashboard";
 let profileEmp = null;
 let editing = null;
@@ -606,15 +613,16 @@ function setOnline(ok) {
 }
 async function loadAll(silent) {
   try {
-    const [e, t, r, a, s, n] = await Promise.all([
+    const [e, t, r, a, s, n, np] = await Promise.all([
       api("/hr_employees?select=id,full_name,role,color,active&active=eq.true&order=full_name.asc"),
       api("/tb_tasks?select=*&order=created_at.desc"),
       api("/tb_routines?select=*&order=created_at.asc"),
       api("/tb_activity?select=*&order=created_at.desc&limit=300"),
       api("/tb_settings?select=key,value"),
-      api("/tb_notes?select=*&done=eq.false&order=created_at.asc")
+      api("/tb_notes?select=*&done=eq.false&order=created_at.asc"),
+      api("/tb_notepads?select=*")
     ]);
-    allStaff = e; tasks = t; routines = r; activity = a; notes = n;
+    allStaff = e; tasks = t; routines = r; activity = a; notes = n; notepads = np;
     const st = (s||[]).find(x=>x.key==="sites");
     sites = st && Array.isArray(st.value) ? st.value : [];
     const tm = (s||[]).find(x=>x.key==="team");
@@ -742,13 +750,13 @@ function renderNav(){
       <span class="t-name">${esc(e.full_name)}</span>
       <span class="t-counts">${nn?`<span title="${nn} sticky note${nn===1?'':'s'}">📌</span>`:""}${red?`<span class="sdot" style="background:var(--red)" title="${red} urgent"></span>`:""}${open.length}</span></button>`;
   }).join("");
-  $("teamList").querySelectorAll(".team-row").forEach(b => b.onclick = () => { view="profile"; profileEmp=b.dataset.emp; render(); });
+  $("teamList").querySelectorAll(".team-row").forEach(b => b.onclick = () => { view="profile"; profileEmp=b.dataset.emp; focusNotepad=true; render(); });
   $("legend").innerHTML = ORDER.map(k =>
     `<div class="legend-row">${statusDot(k)}<span>${STATUSES[k].label}</span><span class="meaning">${STATUSES[k].meaning}</span></div>`).join("");
 }
 function render(){
   // don't wipe the page while someone is typing a sticky note or dragging one (background sync keeps running)
-  if (noteDragging || (document.activeElement && document.activeElement.closest && document.activeElement.closest(".sn-body"))) return;
+  if (noteDragging || (document.activeElement && document.activeElement.closest && document.activeElement.closest(".sn-body, .np-body"))) return;
   document.body.classList.toggle("profile-mode", view==="profile");
   renderNav();
   const c = $("content");
@@ -876,10 +884,32 @@ function vProfile(){
       <button class="btn ghost tiny" data-edit-emp="${e.id}">✎ Edit</button>
       <button class="btn primary tiny" data-add-emp-task="${e.id}">+ Add task</button>
     </div>
-    <div class="panel notes-panel"><h2>📌 Sticky notes <span class="h-sub">double-click anywhere to write · paste (Cmd/Ctrl+V) to drop a note in · tick ☑ lines off · ✓ when dealt with · scrolls both ways</span></h2>
+    <div class="panel np-panel">
+      <div class="ne-toolbar np-toolbar">
+        <button type="button" data-ne="h" title="Heading — Cmd/Ctrl+Shift+H">Heading</button>
+        <button type="button" data-ne="sub" title="Subheading — Cmd/Ctrl+Shift+J">Subheading</button>
+        <button type="button" data-ne="body" title="Body — Cmd/Ctrl+Shift+0">Body</button>
+        <span class="ne-sep"></span>
+        <button type="button" data-ne="bold" title="Bold — Cmd/Ctrl+B"><b>B</b></button>
+        <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
+        <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
+        <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:6px;">HL</button>
+        <span class="ne-sep"></span>
+        <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">• List</button>
+        <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1. List</button>
+        <button type="button" data-ne="chk" title="Checklist — Cmd/Ctrl+Shift+L">☑ Check</button>
+        <span class="ne-sep"></span>
+        <button type="button" id="npAttach" title="Attach photo / file / zip">📎 Attach</button>
+        <div class="spacer"></div>
+        <span class="m-meta">${(()=>{const p=notepads.find(x=>x.employee_id===e.id); return p&&p.updated_at? "saved "+fmtWhen(p.updated_at)+(p.updated_by?" · "+esc(p.updated_by.split(" ")[0]):"") : "saves automatically";})()}</span>
+      </div>
+      <div class="ne-body rich-target np-body" id="npBody" contenteditable="true" data-emp="${e.id}"
+        data-placeholder="Type straight away — notes for ${esc(e.full_name)}. Heading / Subheading / Body, checklists, paste photos, files & zips…">${sanitizeHtml((notepads.find(x=>x.employee_id===e.id)||{}).content||"")}</div>
+    </div>
+    <details class="panel notes-panel" ${myNotes.length?"open":""}><summary style="font-size:13px;font-weight:700;padding:10px 14px;cursor:pointer;">📌 Sticky notes (${myNotes.length}) <span class="h-sub" style="font-weight:500;">double-click the board to write · drag · ⤢ full screen · ✓ when dealt with</span></summary>
       <div class="notes-scroll"><div class="notes-canvas" id="notesCanvas" style="width:${canvasW}px;height:${canvasH}px;">
         ${myNotes.map(noteHTML).join("") || '<div class="empty notes-empty">No sticky notes — double-click anywhere here to write one for ' + esc(e.full_name) + ', or paste text/a screenshot straight onto the board.</div>'}
-      </div></div></div>
+      </div></div></details>
     ${rts.length?`<div class="routine-strip" style="margin-bottom:16px;"><div class="rs-head">Regular cadence</div>
       ${rts.map(r=>{const st=routineState(r);
         return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}, ${r.last_done?'last done '+fmtDate(r.last_done):'never done'}">
@@ -1020,7 +1050,7 @@ function vSettings(){
 function wire(c){
   c.querySelectorAll("[data-goto-status]").forEach(el=>el.onclick=()=>{ $("fStatus").value=el.dataset.gotoStatus; $("fDue").value=""; view="list"; render(); });
   c.querySelectorAll("[data-goto-view]").forEach(el=>el.onclick=()=>{ view=el.dataset.gotoView; render(); });
-  c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ view="profile"; profileEmp=el.dataset.gotoEmp; render(); });
+  c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ view="profile"; profileEmp=el.dataset.gotoEmp; focusNotepad=true; render(); });
   c.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openTask(el.dataset.open));
   c.querySelectorAll("[data-done]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleDone(el.dataset.done); });
   c.querySelectorAll(".card").forEach(el=>{
@@ -1091,6 +1121,27 @@ function richAutosave(t){
   const nb = t.closest ? t.closest("[data-note-body]") : null;
   if (nb) saveNote(nb.dataset.noteBody);
   else if (t.id==="neBody" && editorNoteId) saveNote(editorNoteId);
+  else if (t.id==="npBody") saveNotepad();
+}
+/* ---------- Per-employee Notepad (type straight away) ---------- */
+let npTimer = null;
+function saveNotepad(immediate){
+  clearTimeout(npTimer);
+  const doIt = () => {
+    const el = $("npBody");
+    if (!el) return;
+    syncNoteCheckboxes(el);
+    const content = sanitizeHtml(el.innerHTML);
+    const empId = el.dataset.emp;
+    const existing = notepads.find(x=>x.employee_id===empId);
+    if (existing){ existing.content = content; existing.updated_at = new Date().toISOString(); }
+    else notepads.push({employee_id:empId, content, updated_at:new Date().toISOString(), updated_by:meName()});
+    api("/tb_notepads?on_conflict=employee_id", {method:"POST",
+      headers:{"Prefer":"resolution=merge-duplicates,return=representation"},
+      body: JSON.stringify({employee_id:empId, content, updated_at:new Date().toISOString(), updated_by:meName()})})
+      .then(()=>setOnline(true)).catch(err=>{ console.error(err); setOnline(false); });
+  };
+  if (immediate) doIt(); else npTimer = setTimeout(doIt, 700);
 }
 document.addEventListener("keydown", e=>{
   const t = document.activeElement;
@@ -1262,6 +1313,46 @@ document.addEventListener("paste", async e=>{
   }catch(err){ console.error(err); setOnline(false); toast("Couldn’t add the note — check connection"); }
 });
 function wireNotes(c){
+  /* notepad */
+  const np = c.querySelector("#npBody");
+  if (np){
+    c.querySelectorAll(".np-toolbar [data-ne]").forEach(b=>{
+      b.onmousedown = ev => ev.preventDefault();
+      b.onclick = () => { np.focus(); applyCmd(b.dataset.ne); saveNotepad(); };
+    });
+    const npa = c.querySelector("#npAttach");
+    if (npa) npa.onclick = () => {
+      const inp = document.createElement("input");
+      inp.type="file"; inp.multiple=true;
+      inp.onchange = async () => {
+        const files=[...inp.files];
+        if(!files.length) return;
+        toast("Attaching…");
+        for (const f of files){
+          try{
+            const url = await uploadNoteImage(f);
+            const ins = (f.type||"").startsWith("image")
+              ? `<img src="${esc(url)}">`
+              : `<a class="nfile" href="${esc(url)}" target="_blank" rel="noopener">📎 ${esc(f.name||"file")}</a>&nbsp;`;
+            np.focus();
+            document.execCommand("insertHTML", false, ins);
+          }catch(err){ console.error(err); setOnline(false); toast("Attach failed"); }
+        }
+        saveNotepad(true);
+        toast("Attached ✓");
+      };
+      inp.click();
+    };
+    np.addEventListener("input", ()=>saveNotepad());
+    np.addEventListener("change", e=>{ if(e.target.matches && e.target.matches('input[type=checkbox]')) saveNotepad(true); });
+    np.addEventListener("blur", ()=>saveNotepad(true));
+    if (focusNotepad){
+      focusNotepad = false;
+      np.focus();
+      const r=document.createRange(); r.selectNodeContents(np); r.collapse(false);
+      const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }
+  }
   const canvas = c.querySelector("#notesCanvas");
   c.querySelectorAll("[data-add-note]").forEach(el=>el.onclick=async ()=>{
     try{
