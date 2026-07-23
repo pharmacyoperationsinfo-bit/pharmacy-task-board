@@ -286,6 +286,28 @@
   .lightbox.open{display:flex;}
   .lightbox img{max-width:92vw; max-height:92vh; border-radius:8px;}
 
+  /* ---------- Sticky notes ---------- */
+  .notes-canvas{position:relative; min-height:300px; background:var(--surface);
+    background-image:radial-gradient(var(--line) 1px, transparent 1px); background-size:22px 22px;}
+  .snote{position:absolute; width:208px; min-height:150px; border-radius:3px; display:flex; flex-direction:column;
+    box-shadow:0 8px 18px rgba(11,11,11,.20), 0 1px 3px rgba(11,11,11,.12);
+    transform:rotate(var(--rot,0deg)); animation:notepop .28s ease; font-family:inherit;}
+  @keyframes notepop{from{transform:rotate(var(--rot,0deg)) scale(.75); opacity:0;}}
+  .snote.c-yellow{background:#fff3a3;} .snote.c-pink{background:#ffd6e0;} .snote.c-blue{background:#cfe7ff;}
+  .snote.c-green{background:#d6f2cf;} .snote.c-orange{background:#ffe1b3;}
+  .sn-bar{display:flex; align-items:center; gap:3px; padding:5px 7px 0; cursor:grab; touch-action:none; user-select:none;}
+  .sn-bar:active{cursor:grabbing;}
+  .sn-meta{font-size:9.5px; color:rgba(11,11,11,.45); margin-right:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .sn-btn{font-size:12px; line-height:1; color:rgba(11,11,11,.55); padding:2px 4px; border-radius:4px;}
+  .sn-btn:hover{background:rgba(11,11,11,.09); color:#0b0b0b;}
+  .sn-dot{width:11px; height:11px; border-radius:50%; border:1px solid rgba(11,11,11,.25); padding:0;}
+  .sn-dot.d-yellow{background:#ffe95c;} .sn-dot.d-pink{background:#ff9fb8;} .sn-dot.d-blue{background:#8fc4ff;}
+  .sn-dot.d-green{background:#93dc84;} .sn-dot.d-orange{background:#ffc069;}
+  .sn-body{flex:1; padding:6px 11px 11px; font-size:12.5px; line-height:1.45; outline:none; overflow-wrap:break-word; color:#1c1b17; min-height:96px;}
+  .sn-body:empty::before{content:"Write anything…"; color:rgba(11,11,11,.35);}
+  .nchk{display:flex; gap:6px; align-items:baseline;}
+  .nchk input{accent-color:#0b0b0b; width:13px; height:13px;}
+  .nchk:has(input:checked) span{text-decoration:line-through; opacity:.55;}
   .site-tag-list{display:flex; gap:6px; flex-wrap:wrap; padding:12px 16px;}
   .site-tag{display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:3px 11px; font-size:12.5px;}
   .site-tag button{color:var(--muted); font-size:14px;}
@@ -490,7 +512,7 @@ const CAD_DAYS = {daily:1, weekly:7, monthly:31, quarterly:92, yearly:366};
 const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","#c98500","#d03b3b"];
 
 /* ================= State ================= */
-let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [];
+let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [];
 let view = "dashboard";
 let profileEmp = null;
 let editing = null;
@@ -519,14 +541,15 @@ function setOnline(ok) {
 }
 async function loadAll(silent) {
   try {
-    const [e, t, r, a, s] = await Promise.all([
+    const [e, t, r, a, s, n] = await Promise.all([
       api("/hr_employees?select=id,full_name,role,color,active&active=eq.true&order=full_name.asc"),
       api("/tb_tasks?select=*&order=created_at.desc"),
       api("/tb_routines?select=*&order=created_at.asc"),
       api("/tb_activity?select=*&order=created_at.desc&limit=300"),
-      api("/tb_settings?select=key,value")
+      api("/tb_settings?select=key,value"),
+      api("/tb_notes?select=*&done=eq.false&order=created_at.asc")
     ]);
-    allStaff = e; tasks = t; routines = r; activity = a;
+    allStaff = e; tasks = t; routines = r; activity = a; notes = n;
     const st = (s||[]).find(x=>x.key==="sites");
     sites = st && Array.isArray(st.value) ? st.value : [];
     const tm = (s||[]).find(x=>x.key==="team");
@@ -648,16 +671,19 @@ function renderNav(){
   $("teamList").innerHTML = employees.map(e => {
     const open = tasks.filter(t=>t.employee_id===e.id && t.status!=="green");
     const red = open.filter(t=>urgency(t)==="red").length;
+    const nn = notes.filter(x=>x.employee_id===e.id).length;
     return `<button class="team-row ${view==='profile'&&profileEmp===e.id?'active':''}" data-emp="${e.id}">
       <span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>
       <span class="t-name">${esc(e.full_name)}</span>
-      <span class="t-counts">${red?`<span class="sdot" style="background:var(--red)" title="${red} urgent"></span>`:""}${open.length}</span></button>`;
+      <span class="t-counts">${nn?`<span title="${nn} sticky note${nn===1?'':'s'}">📌</span>`:""}${red?`<span class="sdot" style="background:var(--red)" title="${red} urgent"></span>`:""}${open.length}</span></button>`;
   }).join("");
   $("teamList").querySelectorAll(".team-row").forEach(b => b.onclick = () => { view="profile"; profileEmp=b.dataset.emp; render(); });
   $("legend").innerHTML = ORDER.map(k =>
     `<div class="legend-row">${statusDot(k)}<span>${STATUSES[k].label}</span><span class="meaning">${STATUSES[k].meaning}</span></div>`).join("");
 }
 function render(){
+  // don't wipe the page while someone is typing a sticky note or dragging one (background sync keeps running)
+  if (noteDragging || (document.activeElement && document.activeElement.closest && document.activeElement.closest(".sn-body"))) return;
   renderNav();
   const c = $("content");
   if (view==="profile"){
@@ -759,13 +785,33 @@ function vProfile(){
       <span style="color:var(--ink)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span>
       <span style="color:var(--muted);font-weight:500;">${g.length}</span></div>${g.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`;
   };
+  const myNotes = notes.filter(n=>n.employee_id===e.id);
+  const canvasH = Math.max(300, ...myNotes.map(n=>(n.y||0)+230));
+  const noteHTML = n => {
+    const rot = ((parseInt(n.id.slice(0,6),16)%5)-2)*0.9;
+    return `<div class="snote c-${n.color}" data-note="${n.id}" style="left:${n.x||16}px;top:${n.y||16}px;--rot:${rot}deg">
+      <div class="sn-bar" data-note-drag="${n.id}">
+        <span class="sn-meta">${esc((n.created_by||"note").split(" ")[0])} · ${fmtDate((n.created_at||"").slice(0,10))}</span>
+        ${["yellow","pink","blue","green","orange"].map(c=>`<button class="sn-dot d-${c}" data-note-color="${n.id}:${c}" title="${c}"></button>`).join("")}
+        <button class="sn-btn" data-note-chk="${n.id}" title="Insert a tick-box line">☑</button>
+        <button class="sn-btn" data-note-done="${n.id}" title="Mark dealt with">✓</button>
+        <button class="sn-btn" data-note-del="${n.id}" title="Delete">×</button>
+      </div>
+      <div class="sn-body" contenteditable="true" data-note-body="${n.id}">${sanitizeHtml(n.content||"")}</div>
+    </div>`;
+  };
   return `<div class="profile-head">
       <span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>
-      <div><div class="p-name">${esc(e.full_name)}</div><div class="p-role">${esc(e.role||"Team member")} · ${open.length} open task${open.length===1?"":"s"}</div></div>
+      <div><div class="p-name">${esc(e.full_name)}</div><div class="p-role">${esc(e.role||"Team member")} · ${open.length} open task${open.length===1?"":"s"}${myNotes.length?` · 📌 ${myNotes.length} note${myNotes.length===1?"":"s"}`:""}</div></div>
       <div class="spacer"></div>
+      <button class="btn ghost tiny" data-add-note="${e.id}">📌 + Sticky note</button>
       <button class="btn ghost tiny" data-edit-emp="${e.id}">✎ Edit</button>
       <button class="btn primary tiny" data-add-emp-task="${e.id}">+ Add task</button>
     </div>
+    <div class="panel"><h2>📌 Sticky notes <span class="h-sub">write anything, drag them around, tick ☑ lines off — ✓ when dealt with</span></h2>
+      <div class="notes-canvas" id="notesCanvas" style="min-height:${canvasH}px;">
+        ${myNotes.map(noteHTML).join("") || '<div class="empty" style="padding:60px 10px;">No sticky notes — click “📌 + Sticky note” to leave one for ' + esc(e.full_name.split(" ")[0]) + '.</div>'}
+      </div></div>
     ${rts.length?`<div class="routine-strip" style="margin-bottom:16px;"><div class="rs-head">Regular cadence</div>
       ${rts.map(r=>{const st=routineState(r);
         return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}, ${r.last_done?'last done '+fmtDate(r.last_done):'never done'}">
@@ -949,7 +995,124 @@ function wire(c){
     sites.splice(ix,1); await saveSites("removed site "+removed); });
   const ns=$("newSite"); if(ns) ns.addEventListener("keydown", async e=>{
     if(e.key==="Enter" && ns.value.trim()){ sites.push(ns.value.trim()); await saveSites("added site "+ns.value.trim()); }});
+  wireNotes(c);
 }
+/* ---------- Sticky notes wiring ---------- */
+const noteTimers = {};
+function syncNoteCheckboxes(body){
+  body.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    if (cb.checked) cb.setAttribute("checked",""); else cb.removeAttribute("checked");
+  });
+}
+function saveNote(id, immediate){
+  clearTimeout(noteTimers[id]);
+  const doSave = () => {
+    const body = document.querySelector(`[data-note-body="${id}"]`);
+    if (!body) return;
+    syncNoteCheckboxes(body);
+    const content = sanitizeHtml(body.innerHTML);
+    const n = notes.find(x=>x.id===id);
+    if (n) n.content = content;
+    api(`/tb_notes?id=eq.${id}`, {method:"PATCH", body:JSON.stringify({content, updated_at:new Date().toISOString()})})
+      .then(()=>setOnline(true)).catch(err=>{ console.error(err); setOnline(false); });
+  };
+  if (immediate) doSave(); else noteTimers[id] = setTimeout(doSave, 700);
+}
+function wireNotes(c){
+  const canvas = c.querySelector("#notesCanvas");
+  c.querySelectorAll("[data-add-note]").forEach(el=>el.onclick=async ()=>{
+    const empId = el.dataset.addNote;
+    const count = notes.filter(n=>n.employee_id===empId).length;
+    const colors = ["yellow","pink","blue","green","orange"];
+    try{
+      await api("/tb_notes", {method:"POST", body:JSON.stringify({
+        employee_id: empId, color: colors[count%colors.length],
+        x: 16 + (count%4)*225, y: 16 + Math.floor(count/4)*185,
+        content: "", created_by: meName() })});
+      await logActivity("sticky note added", null, "for "+empName(empId));
+      await loadAll(true);
+      const last = document.querySelectorAll(".sn-body");
+      if (last.length) last[last.length-1].focus();
+    }catch(e){ console.error(e); setOnline(false); toast("Couldn’t add note"); }
+  });
+  if (!canvas) return;
+  c.querySelectorAll("[data-note-done]").forEach(b=>b.onclick=async ()=>{
+    const id=b.dataset.noteDone; const n=notes.find(x=>x.id===id);
+    try{
+      saveNote(id, true);
+      await api(`/tb_notes?id=eq.${id}`, {method:"PATCH", body:JSON.stringify({done:true, done_at:new Date().toISOString()})});
+      await logActivity("sticky note done ✓", null, (n?empName(n.employee_id):"")+(meName()?" — by "+meName():""));
+      toast("Note marked as dealt with ✓");
+      await loadAll(true);
+    }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }
+  });
+  c.querySelectorAll("[data-note-del]").forEach(b=>b.onclick=async ()=>{
+    const id=b.dataset.noteDel;
+    if (b.dataset.armed!=="1"){ b.dataset.armed="1"; b.style.color="var(--red)"; toast("Click × again to delete the note"); return; }
+    try{
+      await api(`/tb_notes?id=eq.${id}`, {method:"DELETE"});
+      await logActivity("sticky note deleted", null, "");
+      await loadAll(true);
+    }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete"); }
+  });
+  c.querySelectorAll("[data-note-color]").forEach(b=>b.onclick=async ()=>{
+    const [id,color]=b.dataset.noteColor.split(":");
+    const el=c.querySelector(`[data-note="${id}"]`);
+    if(el){ el.className="snote c-"+color; }
+    const n=notes.find(x=>x.id===id); if(n) n.color=color;
+    api(`/tb_notes?id=eq.${id}`, {method:"PATCH", body:JSON.stringify({color})}).catch(console.error);
+  });
+  c.querySelectorAll("[data-note-chk]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.noteChk;
+    const body=c.querySelector(`[data-note-body="${id}"]`);
+    if(!body) return;
+    body.focus();
+    document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;to do</span></div>');
+    saveNote(id);
+  });
+  canvas.addEventListener("input", e=>{
+    const body = e.target.closest ? e.target.closest(".sn-body") : null;
+    if (body) saveNote(body.dataset.noteBody);
+  });
+  canvas.addEventListener("change", e=>{
+    if (e.target.matches && e.target.matches('input[type=checkbox]')){
+      const body = e.target.closest(".sn-body");
+      if (body) saveNote(body.dataset.noteBody, true);
+    }
+  });
+  canvas.addEventListener("focusout", e=>{
+    const body = e.target.closest ? e.target.closest(".sn-body") : null;
+    if (body) saveNote(body.dataset.noteBody, true);
+  });
+  c.querySelectorAll("[data-note-drag]").forEach(bar=>{
+    bar.onpointerdown = ev => {
+      if (ev.target.closest("button")) return;
+      const el = bar.closest(".snote");
+      const id = el.dataset.note;
+      const cr = canvas.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
+      noteDragging = true;
+      const move = e2 => {
+        let x = e2.clientX - cr.left - dx, y = e2.clientY - cr.top - dy;
+        x = Math.max(0, Math.min(x, cr.width - 212)); y = Math.max(0, y);
+        el.style.left = x+"px"; el.style.top = y+"px";
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        noteDragging = false;
+        const x = parseFloat(el.style.left)||0, y = parseFloat(el.style.top)||0;
+        const n = notes.find(v=>v.id===id); if(n){ n.x=x; n.y=y; }
+        api(`/tb_notes?id=eq.${id}`, {method:"PATCH", body:JSON.stringify({x, y})}).catch(console.error);
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+      ev.preventDefault();
+    };
+  });
+}
+let noteDragging = false;
 ["q","fEmp","fStatus","fQuad","fSite","fDue"].forEach(id=>$(id).addEventListener("input",render));
 $("teamAdd").onclick=()=>openEmployee(null);
 async function saveSites(what){
@@ -1074,7 +1237,8 @@ function fillSelects(){
 }
 function sanitizeHtml(html){
   const div=document.createElement("div"); div.innerHTML=html;
-  div.querySelectorAll("script,style,iframe,object,embed,link,meta,form,input,button").forEach(n=>n.remove());
+  div.querySelectorAll("script,style,iframe,object,embed,link,meta,form,button").forEach(n=>n.remove());
+  div.querySelectorAll("input").forEach(n=>{ if((n.getAttribute("type")||"").toLowerCase()!=="checkbox") n.remove(); });
   div.querySelectorAll("*").forEach(el=>{
     [...el.attributes].forEach(a=>{
       if(/^on/i.test(a.name)) el.removeAttribute(a.name);
