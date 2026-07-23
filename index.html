@@ -290,6 +290,9 @@
   .notes-panel{margin-bottom:10px;}
   .notes-panel h2{padding:8px 14px;}
   .notes-scroll{overflow:auto; height:calc(100vh - 300px); min-height:440px; overscroll-behavior:contain;}
+  /* profile view = full window: no quick-add bar, no filter bar */
+  body.profile-mode .quickbar, body.profile-mode .topbar{display:none;}
+  body.profile-mode .notes-scroll{height:calc(100vh - 175px);}
   .notes-canvas{position:relative; background:var(--surface);
     background-image:radial-gradient(var(--line) 1px, transparent 1px); background-size:22px 22px;}
   .notes-empty{position:absolute; left:40px; top:150px; width:520px; text-align:left; pointer-events:none; padding:0;}
@@ -691,6 +694,7 @@ function renderNav(){
 function render(){
   // don't wipe the page while someone is typing a sticky note or dragging one (background sync keeps running)
   if (noteDragging || (document.activeElement && document.activeElement.closest && document.activeElement.closest(".sn-body"))) return;
+  document.body.classList.toggle("profile-mode", view==="profile");
   renderNav();
   const c = $("content");
   if (view==="profile"){
