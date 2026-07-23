@@ -90,7 +90,7 @@
   .btn.danger{color:var(--red-ink); border:1px solid #f0c4c4; background:var(--red-bg);}
   .btn.tiny{padding:3px 9px; font-size:12px;}
   .spacer{flex:1;}
-  .content{flex:1; overflow:auto; padding:20px;}
+  .content{flex:1; overflow:auto; padding:12px 20px 16px;}
 
   /* ---------- Dashboard ---------- */
   .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px;}
@@ -166,8 +166,8 @@
   .rs-item.duesoon .rs-due{color:var(--amber-ink); font-weight:600;}
 
   /* ---------- Profile ---------- */
-  .profile-head{display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--ring);
-    border-radius:var(--radius); padding:16px 18px; margin-bottom:18px;}
+  .profile-head{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--ring);
+    border-radius:var(--radius); padding:9px 14px; margin-bottom:10px;}
   .profile-head .avatar{width:44px; height:44px; font-size:17px;}
   .profile-head .p-name{font-size:17px; font-weight:700;}
   .profile-head .p-role{font-size:12.5px; color:var(--muted);}
@@ -287,8 +287,12 @@
   .lightbox img{max-width:92vw; max-height:92vh; border-radius:8px;}
 
   /* ---------- Sticky notes ---------- */
-  .notes-canvas{position:relative; min-height:300px; background:var(--surface);
+  .notes-panel{margin-bottom:10px;}
+  .notes-panel h2{padding:8px 14px;}
+  .notes-scroll{overflow:auto; height:calc(100vh - 300px); min-height:440px; overscroll-behavior:contain;}
+  .notes-canvas{position:relative; background:var(--surface);
     background-image:radial-gradient(var(--line) 1px, transparent 1px); background-size:22px 22px;}
+  .notes-empty{position:absolute; left:40px; top:150px; width:520px; text-align:left; pointer-events:none; padding:0;}
   .snote{position:absolute; width:208px; min-height:150px; border-radius:3px; display:flex; flex-direction:column;
     box-shadow:0 8px 18px rgba(11,11,11,.20), 0 1px 3px rgba(11,11,11,.12);
     transform:rotate(var(--rot,0deg)); animation:notepop .28s ease; font-family:inherit;}
@@ -305,6 +309,9 @@
   .sn-dot.d-green{background:#93dc84;} .sn-dot.d-orange{background:#ffc069;}
   .sn-body{flex:1; padding:6px 11px 11px; font-size:12.5px; line-height:1.45; outline:none; overflow-wrap:break-word; color:#1c1b17; min-height:96px;}
   .sn-body:empty::before{content:"Write anything…"; color:rgba(11,11,11,.35);}
+  .sn-body img{max-width:100%; border-radius:4px; display:block; margin:3px 0;}
+  .notes-canvas{cursor:cell;}
+  .notes-canvas .snote{cursor:auto;}
   .nchk{display:flex; gap:6px; align-items:baseline;}
   .nchk input{accent-color:#0b0b0b; width:13px; height:13px;}
   .nchk:has(input:checked) span{text-decoration:line-through; opacity:.55;}
@@ -786,7 +793,8 @@ function vProfile(){
       <span style="color:var(--muted);font-weight:500;">${g.length}</span></div>${g.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`;
   };
   const myNotes = notes.filter(n=>n.employee_id===e.id);
-  const canvasH = Math.max(300, ...myNotes.map(n=>(n.y||0)+230));
+  const canvasH = Math.max(1400, ...myNotes.map(n=>(n.y||0)+400));
+  const canvasW = Math.max(2400, ...myNotes.map(n=>(n.x||0)+500));
   const noteHTML = n => {
     const rot = ((parseInt(n.id.slice(0,6),16)%5)-2)*0.9;
     return `<div class="snote c-${n.color}" data-note="${n.id}" style="left:${n.x||16}px;top:${n.y||16}px;--rot:${rot}deg">
@@ -808,10 +816,10 @@ function vProfile(){
       <button class="btn ghost tiny" data-edit-emp="${e.id}">✎ Edit</button>
       <button class="btn primary tiny" data-add-emp-task="${e.id}">+ Add task</button>
     </div>
-    <div class="panel"><h2>📌 Sticky notes <span class="h-sub">write anything, drag them around, tick ☑ lines off — ✓ when dealt with</span></h2>
-      <div class="notes-canvas" id="notesCanvas" style="min-height:${canvasH}px;">
-        ${myNotes.map(noteHTML).join("") || '<div class="empty" style="padding:60px 10px;">No sticky notes — click “📌 + Sticky note” to leave one for ' + esc(e.full_name.split(" ")[0]) + '.</div>'}
-      </div></div>
+    <div class="panel notes-panel"><h2>📌 Sticky notes <span class="h-sub">double-click anywhere to write · paste (Cmd/Ctrl+V) to drop a note in · tick ☑ lines off · ✓ when dealt with · scrolls both ways</span></h2>
+      <div class="notes-scroll"><div class="notes-canvas" id="notesCanvas" style="width:${canvasW}px;height:${canvasH}px;">
+        ${myNotes.map(noteHTML).join("") || '<div class="empty notes-empty">No sticky notes — double-click anywhere here to write one for ' + esc(e.full_name) + ', or paste text/a screenshot straight onto the board.</div>'}
+      </div></div></div>
     ${rts.length?`<div class="routine-strip" style="margin-bottom:16px;"><div class="rs-head">Regular cadence</div>
       ${rts.map(r=>{const st=routineState(r);
         return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}, ${r.last_done?'last done '+fmtDate(r.last_done):'never done'}">
@@ -1018,24 +1026,74 @@ function saveNote(id, immediate){
   };
   if (immediate) doSave(); else noteTimers[id] = setTimeout(doSave, 700);
 }
+async function createNote(empId, x, y, content){
+  const colors = ["yellow","pink","blue","green","orange"];
+  const count = notes.filter(n=>n.employee_id===empId).length;
+  const rows = await api("/tb_notes", {method:"POST", body:JSON.stringify({
+    employee_id: empId, color: colors[count%colors.length],
+    x: x!=null ? x : 16 + (count%4)*225, y: y!=null ? y : 16 + Math.floor(count/4)*185,
+    content: content||"", created_by: meName() })});
+  await logActivity("sticky note added", null, "for "+empName(empId));
+  await loadAll(true);
+  return rows && rows[0];
+}
+async function uploadNoteImage(file){
+  const safe=(file.name||"note.png").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-60);
+  const path="notes/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"-"+safe;
+  const res=await fetch(SB_STORE+"/object/task-photos/"+path, {method:"POST",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":file.type||"application/octet-stream","x-upsert":"true"},
+    body:file});
+  if(!res.ok) throw new Error("upload "+res.status);
+  return SB_STORE+"/object/public/task-photos/"+path;
+}
+/* Paste text or a screenshot straight onto the profile → becomes a sticky note */
+document.addEventListener("paste", async e=>{
+  if (view!=="profile" || !profileEmp) return;
+  if ($("taskPanel").classList.contains("open")) return;
+  const ae = document.activeElement;
+  if (ae && (ae.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return;
+  const cd = e.clipboardData; if (!cd) return;
+  const files = [...(cd.files||[])];
+  const text = cd.getData("text/plain") || "";
+  if (!files.length && !text.trim()) return;
+  e.preventDefault();
+  try{
+    let content = "";
+    if (files.length){
+      toast("Adding pasted note…");
+      for (const f of files){
+        if ((f.type||"").startsWith("image")){
+          const url = await uploadNoteImage(f);
+          content += `<img src="${esc(url)}">`;
+        }
+      }
+    }
+    if (text.trim()) content += (content?"<br>":"") + esc(text.trim()).replace(/\n/g,"<br>");
+    if (!content) return;
+    await createNote(profileEmp, null, null, content);
+    toast("Sticky note added 📌");
+  }catch(err){ console.error(err); setOnline(false); toast("Couldn’t add the note — check connection"); }
+});
 function wireNotes(c){
   const canvas = c.querySelector("#notesCanvas");
   c.querySelectorAll("[data-add-note]").forEach(el=>el.onclick=async ()=>{
-    const empId = el.dataset.addNote;
-    const count = notes.filter(n=>n.employee_id===empId).length;
-    const colors = ["yellow","pink","blue","green","orange"];
     try{
-      await api("/tb_notes", {method:"POST", body:JSON.stringify({
-        employee_id: empId, color: colors[count%colors.length],
-        x: 16 + (count%4)*225, y: 16 + Math.floor(count/4)*185,
-        content: "", created_by: meName() })});
-      await logActivity("sticky note added", null, "for "+empName(empId));
-      await loadAll(true);
-      const last = document.querySelectorAll(".sn-body");
-      if (last.length) last[last.length-1].focus();
+      const row = await createNote(el.dataset.addNote, null, null, "");
+      if (row){ const b=document.querySelector(`[data-note="${row.id}"] .sn-body`); if(b) b.focus(); }
     }catch(e){ console.error(e); setOnline(false); toast("Couldn’t add note"); }
   });
   if (!canvas) return;
+  /* double-click an empty spot → new note right there, ready to type */
+  canvas.ondblclick = async ev => {
+    if (ev.target.closest(".snote")) return;
+    const cr = canvas.getBoundingClientRect();
+    const x = Math.max(0, Math.min(ev.clientX - cr.left - 20, cr.width - 212));
+    const y = Math.max(0, ev.clientY - cr.top - 10);
+    try{
+      const row = await createNote(profileEmp, x, y, "");
+      if (row){ const b=document.querySelector(`[data-note="${row.id}"] .sn-body`); if(b) b.focus(); }
+    }catch(e){ console.error(e); setOnline(false); toast("Couldn’t add note"); }
+  };
   c.querySelectorAll("[data-note-done]").forEach(b=>b.onclick=async ()=>{
     const id=b.dataset.noteDone; const n=notes.find(x=>x.id===id);
     try{
