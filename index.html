@@ -318,6 +318,24 @@
   .nchk{display:flex; gap:6px; align-items:baseline;}
   .nchk input{accent-color:#0b0b0b; width:13px; height:13px;}
   .nchk:has(input:checked) span{text-decoration:line-through; opacity:.55;}
+  /* rich text content (notes + note editor + task notes) */
+  .rich-target h2{font-size:1.35em; font-weight:700; margin:.4em 0 .15em;}
+  .rich-target h3{font-size:1.1em; font-weight:600; margin:.35em 0 .1em;}
+  .rich-target ul,.rich-target ol{padding-left:22px; margin:4px 0;}
+  .nfile{display:inline-flex; gap:4px; align-items:center; background:rgba(11,11,11,.06); border:1px solid rgba(11,11,11,.18);
+    border-radius:6px; padding:2px 8px; font-size:.92em; color:inherit; text-decoration:none; margin:2px 0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .nfile:hover{background:rgba(11,11,11,.12);}
+  /* full-screen note editor */
+  .ne-modal{width:min(920px,96vw); height:min(88vh,900px); display:flex; flex-direction:column; padding:14px 20px 12px;}
+  .ne-toolbar{display:flex; gap:3px; flex-wrap:wrap; align-items:center; border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:8px;}
+  .ne-toolbar button{padding:4px 10px; border-radius:6px; font-size:12.5px; color:var(--ink-2);}
+  .ne-toolbar button:hover{background:var(--surface-2); color:var(--ink);}
+  .ne-sep{width:1px; height:18px; background:var(--line); margin:0 5px;}
+  .ne-body{flex:1; overflow-y:auto; outline:none; font-size:14.5px; line-height:1.55; padding:8px 4px;}
+  .ne-body:empty::before{content:"Write anything — Heading, Subheading, Body, checklists, paste photos & files…"; color:var(--muted);}
+  .ne-body img{max-width:100%; border-radius:6px; display:block; margin:4px 0;}
+  .ne-foot{border-top:1px solid var(--line); padding-top:8px; margin-top:8px; font-size:11px; color:var(--muted); display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .ne-foot code{background:var(--surface-2); border:1px solid var(--line); border-radius:4px; padding:0 4px; font-family:inherit;}
   .site-tag-list{display:flex; gap:6px; flex-wrap:wrap; padding:12px 16px;}
   .site-tag{display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:3px 11px; font-size:12.5px;}
   .site-tag button{color:var(--muted); font-size:14px;}
@@ -422,14 +440,18 @@
       <div class="frow"><label>Assign to</label><select id="mEmp" style="flex:1;"><option value="">— Unassigned —</option></select>
         <select id="mSite"><option value="">No site</option></select></div>
       <div class="note-tools" id="noteTools">
-        <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
-        <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
-        <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
-        <button type="button" data-cmd="insertUnorderedList" title="Bullet list">•&nbsp;List</button>
-        <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.&nbsp;List</button>
-        <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+        <button type="button" data-ne="h" title="Heading — Cmd/Ctrl+Shift+H">H</button>
+        <button type="button" data-ne="sub" title="Subheading — Cmd/Ctrl+Shift+J">h</button>
+        <button type="button" data-ne="body" title="Body — Cmd/Ctrl+Shift+0">¶</button>
+        <button type="button" data-ne="bold" title="Bold — Cmd/Ctrl+B"><b>B</b></button>
+        <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
+        <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
+        <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:5px;">HL</button>
+        <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">•&nbsp;List</button>
+        <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1.&nbsp;List</button>
+        <button type="button" data-ne="clear" title="Clear formatting">Clear</button>
       </div>
-      <div class="f-desc rich" id="mDesc" contenteditable="true" data-placeholder="Notes / description — type here. Paste an image, file or link straight into this box and it attaches below…"></div>
+      <div class="f-desc rich rich-target" id="mDesc" contenteditable="true" data-placeholder="Notes / description — type here. Paste an image, file or link straight into this box and it attaches below…"></div>
       </div>
       <div>
       <div class="sub-block">
@@ -486,6 +508,39 @@
   </div>
 </div>
 
+<!-- Full-screen note editor -->
+<div class="overlay" id="neOverlay">
+  <div class="modal ne-modal">
+    <div class="ne-toolbar">
+      <button type="button" data-ne="h" title="Heading — Cmd/Ctrl+Shift+H">Heading</button>
+      <button type="button" data-ne="sub" title="Subheading — Cmd/Ctrl+Shift+J">Subheading</button>
+      <button type="button" data-ne="body" title="Body text — Cmd/Ctrl+Shift+0">Body</button>
+      <span class="ne-sep"></span>
+      <button type="button" data-ne="bold" title="Bold — Cmd/Ctrl+B"><b>B</b></button>
+      <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
+      <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
+      <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:6px;">HL</button>
+      <span class="ne-sep"></span>
+      <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">• List</button>
+      <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1. List</button>
+      <button type="button" data-ne="chk" title="Checklist line — Cmd/Ctrl+Shift+L">☑ Check</button>
+      <span class="ne-sep"></span>
+      <button type="button" id="neAttach" title="Attach photo / file / zip">📎 Attach</button>
+      <div class="spacer"></div>
+      <span class="sn-colors" id="neColors"></span>
+      <button type="button" class="btn ghost tiny" id="neDone">✓ Dealt with</button>
+      <button type="button" class="icon-btn" id="neClose" title="Close (Esc)" style="font-size:17px;">×</button>
+    </div>
+    <div class="ne-body rich-target" id="neBody" contenteditable="true"></div>
+    <div class="ne-foot">
+      <span>Shortcuts:</span><code>⌘/Ctrl B</code> bold · <code>I</code> italic · <code>U</code> underline ·
+      <code>⇧⌘/Ctrl H</code> heading · <code>⇧⌘/Ctrl J</code> subheading · <code>⇧⌘/Ctrl 0</code> body ·
+      <code>⇧⌘/Ctrl E</code> highlight · <code>⇧⌘/Ctrl L</code> checklist · <code>⇧⌘/Ctrl 7/8</code> lists ·
+      paste photos, files &amp; zips straight in — saves automatically
+    </div>
+  </div>
+</div>
+<input type="file" id="neFile" multiple style="display:none;">
 <div class="lightbox" id="lightbox"><img id="lightboxImg" alt="Photo"></div>
 <div class="toast" id="toast"></div>
 
@@ -806,10 +861,11 @@ function vProfile(){
         <span class="sn-meta">${esc((n.created_by||"note").split(" ")[0])} · ${fmtDate((n.created_at||"").slice(0,10))}</span>
         ${["yellow","pink","blue","green","orange"].map(c=>`<button class="sn-dot d-${c}" data-note-color="${n.id}:${c}" title="${c}"></button>`).join("")}
         <button class="sn-btn" data-note-chk="${n.id}" title="Insert a tick-box line">☑</button>
+        <button class="sn-btn" data-note-open="${n.id}" title="Open full screen — headings, formatting, attachments">⤢</button>
         <button class="sn-btn" data-note-done="${n.id}" title="Mark dealt with">✓</button>
         <button class="sn-btn" data-note-del="${n.id}" title="Delete">×</button>
       </div>
-      <div class="sn-body" contenteditable="true" data-note-body="${n.id}">${sanitizeHtml(n.content||"")}</div>
+      <div class="sn-body rich-target" contenteditable="true" data-note-body="${n.id}">${sanitizeHtml(n.content||"")}</div>
     </div>`;
   };
   return `<div class="profile-head">
@@ -1010,6 +1066,131 @@ function wire(c){
   wireNotes(c);
 }
 /* ---------- Sticky notes wiring ---------- */
+/* ---------- Rich text commands & keyboard shortcuts ---------- */
+function applyCmd(cmd){
+  switch(cmd){
+    case "h": document.execCommand("formatBlock", false, "<h2>"); break;
+    case "sub": document.execCommand("formatBlock", false, "<h3>"); break;
+    case "body": document.execCommand("formatBlock", false, "<div>"); break;
+    case "bold": document.execCommand("bold"); break;
+    case "italic": document.execCommand("italic"); break;
+    case "underline": document.execCommand("underline"); break;
+    case "clear": document.execCommand("removeFormat"); break;
+    case "ul": document.execCommand("insertUnorderedList"); break;
+    case "ol": document.execCommand("insertOrderedList"); break;
+    case "chk": document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;to do</span></div>'); break;
+    case "hl": {
+      let cur=""; try{ cur = document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || ""; }catch(_){ }
+      const on = /rgb\(255,\s*241,\s*118\)|#fff176/i.test(String(cur));
+      document.execCommand("hiliteColor", false, on ? "transparent" : "#fff176");
+      break;
+    }
+  }
+}
+function richAutosave(t){
+  const nb = t.closest ? t.closest("[data-note-body]") : null;
+  if (nb) saveNote(nb.dataset.noteBody);
+  else if (t.id==="neBody" && editorNoteId) saveNote(editorNoteId);
+}
+document.addEventListener("keydown", e=>{
+  const t = document.activeElement;
+  if (!t || !t.classList || !t.classList.contains("rich-target")) return;
+  if (!(e.metaKey || e.ctrlKey)) return;
+  const k = (e.key||"").toLowerCase();
+  let cmd = null;
+  if (!e.shiftKey && !e.altKey){
+    if (k==="b") cmd="bold"; else if (k==="i") cmd="italic"; else if (k==="u") cmd="underline";
+  } else if (e.shiftKey && !e.altKey){
+    if (k==="h") cmd="h"; else if (k==="j") cmd="sub"; else if (k==="0"||e.code==="Digit0") cmd="body";
+    else if (k==="e") cmd="hl"; else if (k==="l") cmd="chk";
+    else if (e.code==="Digit7") cmd="ol"; else if (e.code==="Digit8") cmd="ul";
+  }
+  if (cmd){ e.preventDefault(); applyCmd(cmd); richAutosave(t); }
+});
+/* Paste photos / files / zips straight into a note body → uploads & shows inline */
+document.addEventListener("paste", async e=>{
+  const t = document.activeElement;
+  if (!t || !t.classList || !t.classList.contains("rich-target")) return;
+  if ($("taskPanel").classList.contains("open")) return; // task editor handles its own attachments
+  const files = [...((e.clipboardData||{}).files||[])];
+  if (!files.length) return;
+  e.preventDefault();
+  toast("Attaching "+files.length+" file"+(files.length>1?"s":"")+"…");
+  for (const f of files){
+    try{
+      const url = await uploadNoteImage(f);
+      const ins = (f.type||"").startsWith("image")
+        ? `<img src="${esc(url)}">`
+        : `<a class="nfile" href="${esc(url)}" target="_blank" rel="noopener">📎 ${esc(f.name||"file")}</a>&nbsp;`;
+      t.focus();
+      document.execCommand("insertHTML", false, ins);
+    }catch(err){ console.error(err); setOnline(false); toast("Attach failed — check connection"); }
+  }
+  richAutosave(t);
+  toast("Attached ✓");
+});
+/* ---------- Full-screen note editor ---------- */
+let editorNoteId = null;
+function openNoteEditor(id){
+  const n = notes.find(x=>x.id===id);
+  if (!n) return;
+  editorNoteId = id;
+  $("neBody").innerHTML = sanitizeHtml(n.content||"");
+  $("neColors").innerHTML = ["yellow","pink","blue","green","orange"].map(c=>
+    `<button type="button" class="sn-dot d-${c}" data-ne-color="${c}" title="${c}"></button>`).join("");
+  $("neColors").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    const color=b.dataset.neColor; const nn=notes.find(x=>x.id===editorNoteId); if(nn) nn.color=color;
+    api(`/tb_notes?id=eq.${editorNoteId}`, {method:"PATCH", body:JSON.stringify({color})}).catch(console.error);
+    toast("Colour: "+color);
+  });
+  $("neOverlay").classList.add("open");
+  $("neBody").focus();
+}
+async function closeNoteEditor(reload){
+  if (editorNoteId){ saveNote(editorNoteId, true); }
+  $("neOverlay").classList.remove("open");
+  editorNoteId = null;
+  if (reload!==false) await loadAll(true);
+}
+$("neClose").onclick=()=>closeNoteEditor();
+$("neOverlay").addEventListener("mousedown", e=>{ if(e.target===$("neOverlay")) closeNoteEditor(); });
+$("neBody").addEventListener("input", ()=>{ if(editorNoteId) saveNote(editorNoteId); });
+$("neBody").addEventListener("change", e=>{ if(e.target.matches && e.target.matches('input[type=checkbox]') && editorNoteId) saveNote(editorNoteId, true); });
+document.querySelectorAll(".ne-toolbar [data-ne]").forEach(b=>{
+  b.onmousedown = ev => ev.preventDefault();
+  b.onclick = () => { $("neBody").focus(); applyCmd(b.dataset.ne); if(editorNoteId) saveNote(editorNoteId); };
+});
+$("neDone").onclick=async ()=>{
+  if (!editorNoteId) return;
+  const id = editorNoteId;
+  saveNote(id, true);
+  try{
+    await api(`/tb_notes?id=eq.${id}`, {method:"PATCH", body:JSON.stringify({done:true, done_at:new Date().toISOString()})});
+    await logActivity("sticky note done ✓", null, meName());
+    toast("Note marked as dealt with ✓");
+  }catch(e){ console.error(e); setOnline(false); }
+  editorNoteId = null;
+  $("neOverlay").classList.remove("open");
+  await loadAll(true);
+};
+$("neAttach").onclick=()=>$("neFile").click();
+$("neFile").addEventListener("change", async e=>{
+  const files=[...e.target.files]; e.target.value="";
+  if(!files.length || !editorNoteId) return;
+  toast("Attaching…");
+  for (const f of files){
+    try{
+      const url = await uploadNoteImage(f);
+      const ins = (f.type||"").startsWith("image")
+        ? `<img src="${esc(url)}">`
+        : `<a class="nfile" href="${esc(url)}" target="_blank" rel="noopener">📎 ${esc(f.name||"file")}</a>&nbsp;`;
+      $("neBody").focus();
+      document.execCommand("insertHTML", false, ins);
+    }catch(err){ console.error(err); setOnline(false); toast("Attach failed"); }
+  }
+  saveNote(editorNoteId, true);
+  toast("Attached ✓");
+});
 const noteTimers = {};
 function syncNoteCheckboxes(body){
   body.querySelectorAll('input[type=checkbox]').forEach(cb=>{
@@ -1019,7 +1200,9 @@ function syncNoteCheckboxes(body){
 function saveNote(id, immediate){
   clearTimeout(noteTimers[id]);
   const doSave = () => {
-    const body = document.querySelector(`[data-note-body="${id}"]`);
+    const body = (editorNoteId===id && $("neOverlay").classList.contains("open"))
+      ? $("neBody")
+      : document.querySelector(`[data-note-body="${id}"]`);
     if (!body) return;
     syncNoteCheckboxes(body);
     const content = sanitizeHtml(body.innerHTML);
@@ -1132,6 +1315,7 @@ function wireNotes(c){
     document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;to do</span></div>');
     saveNote(id);
   });
+  c.querySelectorAll("[data-note-open]").forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openNoteEditor(b.dataset.noteOpen); });
   canvas.addEventListener("input", e=>{
     const body = e.target.closest ? e.target.closest(".sn-body") : null;
     if (body) saveNote(body.dataset.noteBody);
@@ -1317,7 +1501,7 @@ function setNotes(desc){
 }
 $("noteTools").querySelectorAll("button").forEach(b=>{
   b.onmousedown = ev => ev.preventDefault(); // keep focus in the notes box
-  b.onclick = () => { $("mDesc").focus(); document.execCommand(b.dataset.cmd, false, null); };
+  b.onclick = () => { $("mDesc").focus(); applyCmd(b.dataset.ne); };
 });
 $("meSelect").addEventListener("change", e=>{ me=e.target.value; location.hash = me? "me="+me : ""; });
 
@@ -1635,7 +1819,10 @@ $("btnExport").onclick=()=>{
   toast("CSV downloaded");
 };
 document.addEventListener("keydown", e=>{
-  if (e.key==="Escape"){ closeTask(); $("empOverlay").classList.remove("open"); $("rtOverlay").classList.remove("open"); $("lightbox").classList.remove("open"); }
+  if (e.key==="Escape"){
+    if ($("neOverlay").classList.contains("open")){ closeNoteEditor(); return; }
+    closeTask(); $("empOverlay").classList.remove("open"); $("rtOverlay").classList.remove("open"); $("lightbox").classList.remove("open");
+  }
 });
 
 /* ================= Go ================= */
