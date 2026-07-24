@@ -405,6 +405,13 @@
   .site-tag button:hover{color:var(--red);}
 
   .empty{color:var(--muted); text-align:center; padding:36px 10px; font-size:13.5px;}
+  .ctx-menu{position:fixed; z-index:130; background:var(--surface); border:1px solid var(--line); border-radius:9px;
+    box-shadow:0 8px 28px rgba(11,11,11,.18); padding:4px; display:none; min-width:170px;}
+  .ctx-menu.open{display:block;}
+  .ctx-menu button{display:block; width:100%; text-align:left; padding:7px 12px; border-radius:6px; font-size:13px; color:var(--ink-2);}
+  .ctx-menu button:hover{background:var(--surface-2); color:var(--ink);}
+  .ctx-menu button.danger{color:var(--red-ink);}
+  .ctx-menu button.danger:hover{background:var(--red-bg);}
   .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
     padding:9px 16px; border-radius:8px; font-size:13px; z-index:99; opacity:0; transition:opacity .2s; pointer-events:none;}
   .toast.show{opacity:1;}
@@ -616,6 +623,7 @@
 </div>
 <input type="file" id="neFile" multiple style="display:none;">
 <div class="lightbox" id="lightbox"><img id="lightboxImg" alt="Photo"></div>
+<div class="ctx-menu" id="ctxMenu"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1052,7 +1060,7 @@ function vDocsPanel(e){
         <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${f.created_at?fmtWhen(f.created_at):"—"}</td>
         <td style="color:var(--muted);">—</td>
         <td><span class="rt-actions"><button class="icon-btn" data-del-folder="${f.id}" title="Delete folder">×</button></span></td></tr>`).join("");
-    const fileRows = myDocs.map(d=>`<tr>
+    const fileRows = myDocs.map(d=>`<tr data-doc-ctx="${d.id}">
         <td style="width:30px;font-size:18px;">${docIcon(d)}</td>
         <td><a class="doc-name" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="Open to view or print">${esc(d.name)}</a></td>
         <td style="color:var(--muted);">${esc(docType(d))}</td>
@@ -1069,7 +1077,7 @@ function vDocsPanel(e){
   } else {
     const folderCards = myFolders.map(f=>
       `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(f.name)}</div><div class="df-cnt">${fCnt(f)} file${fCnt(f)===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`).join("");
-    const fileTiles = myDocs.map(d=>`<div class="doc-tile">
+    const fileTiles = myDocs.map(d=>`<div class="doc-tile" data-doc-ctx="${d.id}">
         <a class="dt-link" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="${esc(d.name)} — click to view / print">
           <span class="dt-ic">${isImgDoc(d)?`<img src="${esc(docUrl(d))}" loading="lazy" alt="">`:docIcon(d)}</span>
           <span class="dt-name">${esc(d.name)}</span>
@@ -1123,6 +1131,26 @@ async function uploadDocs(files){
   toast("Uploaded ✓");
   await loadAll(true);
 }
+let renameTarget = null;
+function showCtx(x, y, items){
+  const m=$("ctxMenu");
+  m.innerHTML = items.map((it,i)=>`<button type="button" data-ci="${i}"${it.danger?' class="danger"':''}>${it.label}</button>`).join("");
+  m.querySelectorAll("button").forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); hideCtx(); items[+b.dataset.ci].fn(); });
+  m.style.left = Math.min(x, innerWidth-190)+"px";
+  m.style.top = Math.min(y, innerHeight - items.length*36 - 12)+"px";
+  m.classList.add("open");
+}
+function hideCtx(){ $("ctxMenu").classList.remove("open"); }
+document.addEventListener("click", hideCtx);
+document.addEventListener("scroll", hideCtx, true);
+function startRename(type, id, current){
+  renameTarget = {type, id};
+  const row=$("newFolderRow"), inp=$("newFolderName");
+  if(!row||!inp) return;
+  row.style.display="";
+  inp.value=current||""; inp.placeholder="New name — press Enter…";
+  inp.focus(); inp.select();
+}
 function wireDocs(c){
   const btn=c.querySelector("#npDocsBtn"); if(btn) btn.onclick=()=>{ profileTab="docs"; render(); };
   const back=c.querySelector("#docsBack"); if(back) back.onclick=()=>{ profileTab="notes"; render(); };
@@ -1130,15 +1158,77 @@ function wireDocs(c){
   if(!area) return;
   const up=c.querySelector("#folderUp"); if(up) up.onclick=()=>{ currentDocFolder=""; render(); };
   c.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{ docView=b.dataset.dv; render(); });
-  c.querySelectorAll("[data-open-folder]").forEach(el=>el.onclick=ev=>{ if(ev.target.closest("button")) return; currentDocFolder=el.dataset.openFolder; render(); });
+  c.querySelectorAll("[data-open-folder]").forEach(el=>{
+    el.onclick=ev=>{ if(ev.target.closest("button")) return; currentDocFolder=el.dataset.openFolder; render(); };
+    el.oncontextmenu=ev=>{
+      ev.preventDefault();
+      const name=el.dataset.openFolder;
+      const f=docFolders.find(x=>x.employee_id===profileEmp && x.name===name);
+      if(!f) return;
+      showCtx(ev.clientX, ev.clientY, [
+        {label:"📂 Open", fn:()=>{ currentDocFolder=name; render(); }},
+        {label:"✏️ Rename", fn:()=>startRename("folder", f.id, f.name)},
+        {label:"🗑 Delete folder", danger:true, fn:async()=>{
+          const cnt=docs.filter(d=>d.employee_id===profileEmp && (d.folder||"")===name).length;
+          if(cnt){ toast("Folder isn’t empty — move or delete its files first"); return; }
+          try{ await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"DELETE"});
+            await logActivity("folder deleted", null, name); await loadAll(true);
+          }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete folder"); }
+        }}
+      ]);
+    };
+  });
+  c.querySelectorAll("[data-doc-ctx]").forEach(el=>{
+    el.oncontextmenu=ev=>{
+      ev.preventDefault();
+      const d=docs.find(x=>x.id===el.dataset.docCtx);
+      if(!d) return;
+      showCtx(ev.clientX, ev.clientY, [
+        {label:"👁 View / print", fn:()=>window.open(docUrl(d), "_blank")},
+        {label:"⬇ Download", fn:async()=>{
+          try{ const r=await fetch(docUrl(d)); const bl=await r.blob();
+            const a=document.createElement("a"); a.href=URL.createObjectURL(bl); a.download=d.name||"document"; a.click(); URL.revokeObjectURL(a.href);
+          }catch(e){ console.error(e); toast("Download failed"); }}},
+        {label:"✏️ Rename", fn:()=>startRename("doc", d.id, d.name)},
+        {label:"🗑 Delete file", danger:true, fn:async()=>{
+          try{
+            await fetch(SB_STORE+"/object/employee-docs/"+d.path, {method:"DELETE", headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}});
+            await api(`/tb_docs?id=eq.${d.id}`, {method:"DELETE"});
+            await logActivity("document deleted", null, d.name); await loadAll(true);
+          }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete"); }
+        }}
+      ]);
+    };
+  });
   const nfBtn=c.querySelector("#docNewFolder"); if(nfBtn) nfBtn.onclick=()=>{ const row=c.querySelector("#newFolderRow"); row.style.display=""; row.querySelector("input").focus(); };
   const nfIn=c.querySelector("#newFolderName"); if(nfIn) nfIn.addEventListener("keydown", async ev=>{
+    if(ev.key==="Escape"){ renameTarget=null; nfIn.value=""; nfIn.blur(); c.querySelector("#newFolderRow").style.display="none"; return; }
     if(ev.key==="Enter" && nfIn.value.trim()){
+      const val=nfIn.value.trim();
+      nfIn.blur(); // release focus so the page can re-render instantly
       try{
-        await api("/tb_doc_folders", {method:"POST", body:JSON.stringify({employee_id:profileEmp, name:nfIn.value.trim()})});
-        await logActivity("folder created", null, nfIn.value.trim()+" ("+empName(profileEmp)+")");
+        if (renameTarget && renameTarget.type==="folder"){
+          const f=docFolders.find(x=>x.id===renameTarget.id);
+          if (f){
+            await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"PATCH", body:JSON.stringify({name:val})});
+            await api(`/tb_docs?employee_id=eq.${profileEmp}&folder=eq.${encodeURIComponent(f.name)}`, {method:"PATCH", body:JSON.stringify({folder:val})});
+            await logActivity("folder renamed", null, f.name+" → "+val);
+            if (currentDocFolder===f.name) currentDocFolder=val;
+          }
+        } else if (renameTarget && renameTarget.type==="doc"){
+          const d=docs.find(x=>x.id===renameTarget.id);
+          if (d){
+            await api(`/tb_docs?id=eq.${d.id}`, {method:"PATCH", body:JSON.stringify({name:val})});
+            await logActivity("document renamed", null, d.name+" → "+val);
+          }
+        } else {
+          await api("/tb_doc_folders", {method:"POST", body:JSON.stringify({employee_id:profileEmp, name:val})});
+          await logActivity("folder created", null, val+" ("+empName(profileEmp)+")");
+          toast("Folder “"+val+"” created");
+        }
+        renameTarget=null;
         await loadAll(true);
-      }catch(e){ console.error(e); setOnline(false); toast("Couldn’t create folder"); }
+      }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }
     }});
   c.querySelectorAll("[data-del-folder]").forEach(b=>b.onclick=async ev=>{ ev.stopPropagation();
     const f=docFolders.find(x=>x.id===b.dataset.delFolder); if(!f) return;
