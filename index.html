@@ -119,7 +119,7 @@
 
   /* ---------- Cards ---------- */
   .card{position:relative; background:var(--surface); border:1px solid var(--ring); border-left:3px solid var(--line); border-radius:7px;
-    padding:9px 34px 9px 11px; margin-bottom:8px; cursor:pointer; box-shadow:0 1px 2px rgba(11,11,11,0.04);}
+    padding:9px 62px 9px 11px; margin-bottom:8px; cursor:pointer; box-shadow:0 1px 2px rgba(11,11,11,0.04);}
   .card:hover{box-shadow:0 2px 8px rgba(11,11,11,0.09);}
   .card.amber{border-left-color:var(--amber);} .card.yellow{border-left-color:var(--yellow);}
   .card.green{border-left-color:var(--green);} .card.red{border-left-color:var(--red);}
@@ -130,6 +130,12 @@
     border:1.5px solid var(--line); color:var(--muted); font-size:12px; display:flex; align-items:center; justify-content:center; background:var(--surface);}
   .card .c-done:hover{border-color:var(--green); color:var(--green-ink); background:var(--green-bg);}
   .card.done .c-done{border-color:var(--green); background:var(--green); color:#fff;}
+  .card .c-work{position:absolute; top:8px; right:34px; width:22px; height:22px; border-radius:50%;
+    border:1.5px solid var(--line); color:var(--muted); font-size:11px; display:flex; align-items:center; justify-content:center; background:var(--surface);}
+  .card .c-work:hover{border-color:var(--accent); color:var(--accent); background:#eef4fc;}
+  .card .c-work.on{border-color:var(--accent); background:var(--accent); color:#fff; animation:workpulse 2s ease-in-out infinite;}
+  @keyframes workpulse{0%,100%{box-shadow:0 0 0 0 rgba(42,120,214,.45);}50%{box-shadow:0 0 0 5px rgba(42,120,214,0);}}
+  .badge.working{background:#eef4fc; border-color:#cfdff5; color:#1d5aa8; font-weight:700;}
   .badge{display:inline-flex; align-items:center; gap:4px; padding:1px 7px; border-radius:5px; background:var(--surface-2);
     border:1px solid var(--line); font-size:11px; color:var(--ink-2); white-space:nowrap;}
   .badge.overdue{background:var(--red-bg); color:var(--red-ink); border-color:#f0c4c4; font-weight:700;}
@@ -516,7 +522,8 @@
         <select id="mRec"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
       <div class="frow"><label>Urgency</label><div class="urg-picker" id="mUrgency"></div></div>
       <div class="frow"><label></label><span class="m-meta" id="mUrgHint"></span>
-        <button class="btn ghost tiny" id="mComplete" type="button" style="margin-left:auto;"></button></div>
+        <button class="btn ghost tiny" id="mWorking" type="button" style="margin-left:auto;"></button>
+        <button class="btn ghost tiny" id="mComplete" type="button"></button></div>
       <div class="frow"><label>Assign to</label><select id="mEmp" style="flex:1;"><option value="">— Unassigned —</option></select>
         <select id="mSite"><option value="">No site</option></select></div>
       <div class="note-tools" id="noteTools">
@@ -536,6 +543,8 @@
         <button type="button" data-ne="clear" title="Clear formatting">Clear</button>
       </div>
       <div class="f-desc rich rich-target" id="mDesc" contenteditable="true" data-placeholder="Notes / description — type here. Paste an image, file or link straight into this box and it attaches below…"></div>
+      <div class="frow" style="margin-bottom:4px;"><label>Outcome</label></div>
+      <textarea class="f-desc" id="mOutcome" style="min-height:74px;" placeholder="Outcome / result — what happened, decision made, figures, follow-up needed…"></textarea>
       </div>
       <div>
       <div class="sub-block">
@@ -883,6 +892,7 @@ function cardHTML(t, opts){
   const done = cl.filter(i=>i.done).length;
   const imgs = Array.isArray(t.images)? t.images : [];
   return `<div class="card ${u}${t.status==='green'?' done':''}" draggable="true" data-id="${t.id}">
+    ${t.status!=='green'?`<button class="c-work ${t.working?'on':''}" data-work="${t.id}" title="${t.working?'Working on it — click to pause':'I’m working on this'}">⚙</button>`:''}
     <button class="c-done" data-done="${t.id}" title="${t.status==='green'?'Reopen':'Mark completed'}">✓</button>
     <div class="c-title">${esc(t.title)}</div>
     <div class="c-meta">
@@ -890,6 +900,7 @@ function cardHTML(t, opts){
       ${t.quadrant?`<span class="badge quad" title="${QUADS[t.quadrant].label} — ${QUADS[t.quadrant].sub}">${QUADS[t.quadrant].code}</span>`:""}
       ${t.site?`<span class="badge">📍 ${esc(t.site)}</span>`:""}
       ${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${dueLabel(t)}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}
+      ${t.working && t.status!=='green'?`<span class="badge working" title="Being worked on">⚙ ${t.touched_by?esc(t.touched_by.split(" ")[0])+" working":"working on it"}</span>`:""}
       ${t.waiting_on?`<span class="badge wait" title="Waiting on ${esc(t.waiting_on)}">⏳ ${esc(t.waiting_on)}</span>`:""}
       ${cl.length?`<span class="badge">☑ ${done}/${cl.length}</span>`:""}
       ${t.recurrence && t.recurrence!=="none"?`<span class="badge" title="Repeats ${t.recurrence}">↻</span>`:""}
@@ -1498,8 +1509,9 @@ function wire(c){
   c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ view="profile"; if(profileEmp!==el.dataset.gotoEmp){ profileTab="notes"; currentDocFolder=""; } profileEmp=el.dataset.gotoEmp; focusNotepad=true; render(); });
   c.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openTask(el.dataset.open));
   c.querySelectorAll("[data-done]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleDone(el.dataset.done); });
+  c.querySelectorAll("[data-work]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleWorking(el.dataset.work); });
   c.querySelectorAll(".card").forEach(el=>{
-    el.onclick=ev=>{ if(ev.target.dataset.lb || ev.target.dataset.done) return; openTask(el.dataset.id); };
+    el.onclick=ev=>{ if(ev.target.dataset.lb || ev.target.dataset.done || ev.target.dataset.work) return; openTask(el.dataset.id); };
     el.ondragstart=ev=>{ ev.dataTransfer.setData("text/plain", el.dataset.id); ev.dataTransfer.effectAllowed="move"; };
   });
   c.querySelectorAll("img[data-lb]").forEach(img=>img.onclick=ev=>{ ev.stopPropagation(); showLightbox(img.src); });
@@ -1948,12 +1960,12 @@ async function completeTask(id){
       const nd = nextDue(t.due_date, t.recurrence);
       const cl = (Array.isArray(t.checklist)?t.checklist:[]).map(i=>({...i, done:false}));
       await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({
-        status:"amber", due_date: nd, checklist: cl, completed_at: null, urgency_override: null }))});
+        status:"amber", due_date: nd, checklist: cl, completed_at: null, urgency_override: null, working: false }))});
       await logActivity("completed ✓ (repeats "+t.recurrence+")", t, "next deadline "+fmtDate(nd));
       toast(`“${t.title}” done ✓ — rescheduled for ${fmtDate(nd)}`);
     } else {
       await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({
-        status:"green", completed_at: new Date().toISOString() }))});
+        status:"green", completed_at: new Date().toISOString(), working: false }))});
       await logActivity("completed ✓", t);
     }
     await loadAll(true);
@@ -1967,6 +1979,17 @@ async function reopenTask(id){
     await logActivity("reopened", t);
     await loadAll(true);
   } catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
+}
+async function toggleWorking(id){
+  const t = tasks.find(x=>x.id===id);
+  if (!t || t.status==="green") return;
+  const nowWorking = !t.working;
+  try{
+    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({working: nowWorking}))});
+    await logActivity(nowWorking ? "working on it ⚙" : "paused work", t, meName());
+    toast(nowWorking ? "Marked as working on it ⚙" : "Work paused");
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }
 }
 function toggleDone(id){
   const t = tasks.find(x=>x.id===id);
@@ -2081,7 +2104,7 @@ function openTask(id, preset){
   const t = id ? tasks.find(x=>x.id===id) : null;
   editing = t ? JSON.parse(JSON.stringify(t)) : {
     id: crypto.randomUUID(), _new:true, title:"", description:"", employee_id:(preset&&preset.employee_id)||"",
-    status:"amber", urgency_override:null, quadrant:null, site:"", due_date:plusDays(DEFAULT_DEADLINE_DAYS), recurrence:"none",
+    status:"amber", urgency_override:null, working:false, outcome:"", quadrant:null, site:"", due_date:plusDays(DEFAULT_DEADLINE_DAYS), recurrence:"none",
     waiting_on:"", checklist:[], links:[], images:[]
   };
   if (!Array.isArray(editing.checklist)) editing.checklist=[];
@@ -2094,6 +2117,7 @@ function openTask(id, preset){
   $("mDueTime").value = editing.due_time ? String(editing.due_time).slice(0,5) : "";
   $("mRec").value = editing.recurrence||"none";
   setNotes(editing.description||"");
+  $("mOutcome").value = editing.outcome||"";
   $("mDelete").style.display = t? "" : "none";
   $("mMeta").textContent = t? ("Created "+fmtWhen(t.created_at)+(t.touched_by?` · last touched by ${t.touched_by}`:"")) : "New task";
   renderUrgencyPreview(); renderChecklist(); renderPhotos();
@@ -2114,9 +2138,16 @@ function renderUrgencyPreview(){
     ? "Set manually — click Auto to follow the deadline again"
     : (due ? "Auto: "+STATUSES[auto].label+" · "+STATUSES[auto].meaning+" ("+STATUSES[auto].band+")" : "Set a deadline — required");
   $("mComplete").textContent = editing.status==="green" ? "↩ Reopen" : "✓ Mark completed";
+  const wb=$("mWorking");
+  wb.style.display = editing.status==="green" ? "none" : "";
+  wb.textContent = editing.working ? "⚙ Working — click to pause" : "⚙ Working on it?";
+  wb.style.background = editing.working ? "#eef4fc" : "";
+  wb.style.borderColor = editing.working ? "var(--accent)" : "";
+  wb.style.color = editing.working ? "#1d5aa8" : "";
 }
 $("mDue").addEventListener("input", renderUrgencyPreview);
-$("mComplete").onclick=()=>{ if(!editing) return; editing.status = editing.status==="green" ? "amber" : "green"; renderUrgencyPreview(); };
+$("mComplete").onclick=()=>{ if(!editing) return; editing.status = editing.status==="green" ? "amber" : "green"; if(editing.status==="green") editing.working=false; renderUrgencyPreview(); };
+$("mWorking").onclick=()=>{ if(!editing) return; editing.working = !editing.working; renderUrgencyPreview(); };
 function renderChecklist(){
   const cl = editing.checklist;
   $("mClProg").textContent = cl.length? `${cl.filter(i=>i.done).length}/${cl.length} done` : "";
@@ -2208,7 +2239,8 @@ $("mSave").onclick=async ()=>{
   if(!title){ toast("Give the task a name first"); $("mTitle").focus(); return; }
   if(!$("mDue").value){ toast("Every task needs a deadline — set the date"); $("mDue").focus(); return; }
   const payload={ title, description:sanitizeHtml($("mDesc").innerHTML), employee_id:$("mEmp").value||null,
-    status:editing.status==="green" ? "green" : "amber", urgency_override:editing.urgency_override||null,
+    status:editing.status==="green" ? "green" : "amber", working: editing.status==="green" ? false : !!editing.working,
+    outcome:$("mOutcome").value, urgency_override:editing.urgency_override||null,
     quadrant:editing.quadrant||null, site:$("mSite").value||null,
     due_date:$("mDue").value, due_time:$("mDueTime").value||null, recurrence:$("mRec").value, waiting_on:editing.waiting_on||"",
     checklist:editing.checklist, links:editing.links, images:editing.images,
@@ -2376,13 +2408,13 @@ $("rDelete").onclick=async ()=>{
 $("btnNew").onclick=()=>openTask(null, view==="profile" && profileEmp ? {employee_id:profileEmp} : null);
 $("btnPrint").onclick=()=>window.print();
 $("btnExport").onclick=()=>{
-  const head=["Title","Urgency","Meaning","Quadrant","Owner","Site","Deadline","Deadline time","Past deadline","Waiting on","Repeats","Checklist done","Checklist total","Photos","Description","Links","Last touched","Touched by","Created","Completed"];
+  const head=["Title","Urgency","Meaning","Quadrant","Owner","Site","Deadline","Deadline time","Past deadline","Waiting on","Working","Outcome","Repeats","Checklist done","Checklist total","Photos","Description","Links","Last touched","Touched by","Created","Completed"];
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const lines=[head.join(",")];
   tasks.forEach(t=>{
     const u=urgency(t);
     const cl=Array.isArray(t.checklist)?t.checklist:[];
-    lines.push([q(t.title), u, STATUSES[u].meaning, t.quadrant?QUADS[t.quadrant].label:"", q(empName(t.employee_id)), q(t.site||""), t.due_date||"", tTime(t), isOverdue(t)?"YES":"", q(t.waiting_on||""), t.recurrence||"",
+    lines.push([q(t.title), u, STATUSES[u].meaning, t.quadrant?QUADS[t.quadrant].label:"", q(empName(t.employee_id)), q(t.site||""), t.due_date||"", tTime(t), isOverdue(t)?"YES":"", q(t.waiting_on||""), (t.working&&t.status!=="green")?"YES":"", q(t.outcome||""), t.recurrence||"",
       cl.filter(i=>i.done).length, cl.length, (t.images||[]).length, q(t.description||""), q((t.links||[]).map(l=>l.url).join(" ")),
       (t.updated_at||"").slice(0,16).replace("T"," "), q(t.touched_by||""), (t.created_at||"").slice(0,10), (t.completed_at||"").slice(0,10)].join(","));
   });
