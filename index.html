@@ -306,6 +306,24 @@
     .np-tasks{border-left:none; border-top:1px solid var(--line); margin-left:0; padding-left:0;} }
   .np-body{min-height:calc(100vh - 210px); font-size:14.5px; padding:10px 6px 20px;}
   .np-body:empty::before{content:attr(data-placeholder); color:var(--muted);}
+  .docs-area{min-height:calc(100vh - 195px); padding:10px 4px; position:relative;}
+  .docs-area.dropping{outline:2px dashed var(--accent); outline-offset:-6px;}
+  .doc-folders{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
+  .doc-folder{position:relative; width:154px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    padding:14px 12px 12px; cursor:pointer; font-size:26px; text-align:center;}
+  .doc-folder:hover{box-shadow:0 2px 8px rgba(11,11,11,.09);}
+  .doc-folder .df-name{font-size:13px; font-weight:600; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .doc-folder .df-cnt{font-size:11px; color:var(--muted);}
+  .doc-folder .rm{position:absolute; top:4px; right:8px; color:var(--muted); font-size:15px; visibility:hidden; margin:0;}
+  .doc-folder:hover .rm{visibility:visible;}
+  .doc-folder .rm:hover{color:var(--red);}
+  .doc-row{display:flex; align-items:center; gap:10px; padding:9px 8px; border-bottom:1px solid var(--line); font-size:13.5px;}
+  .doc-row:hover{background:var(--surface-2);}
+  .doc-ic{font-size:20px;}
+  .doc-name{font-weight:600; color:var(--ink); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:42%;}
+  .doc-name:hover{text-decoration:underline; color:var(--accent);}
+  .doc-meta{color:var(--muted); font-size:12px;}
+  .doc-row .rt-actions{margin-left:auto;}
   .notes-panel summary::-webkit-details-marker{display:none;}
   .notes-panel summary:hover{background:var(--surface-2);}
   .notes-canvas{position:relative; background:var(--surface);
@@ -606,7 +624,8 @@ const CAD_DAYS = {daily:1, weekly:7, monthly:31, quarterly:92, yearly:366};
 const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","#c98500","#d03b3b"];
 
 /* ================= State ================= */
-let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], notepads = [];
+let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], notepads = [], docs = [], docFolders = [];
+let profileTab = "notes", currentDocFolder = "";
 let focusNotepad = false;
 let view = "dashboard";
 let profileEmp = null;
@@ -636,16 +655,18 @@ function setOnline(ok) {
 }
 async function loadAll(silent) {
   try {
-    const [e, t, r, a, s, n, np] = await Promise.all([
+    const [e, t, r, a, s, n, np, dc, df] = await Promise.all([
       api("/hr_employees?select=id,full_name,role,color,active&active=eq.true&order=full_name.asc"),
       api("/tb_tasks?select=*&order=created_at.desc"),
       api("/tb_routines?select=*&order=created_at.asc"),
       api("/tb_activity?select=*&order=created_at.desc&limit=300"),
       api("/tb_settings?select=key,value"),
       api("/tb_notes?select=*&done=eq.false&order=created_at.asc"),
-      api("/tb_notepads?select=*")
+      api("/tb_notepads?select=*"),
+      api("/tb_docs?select=*&order=created_at.desc"),
+      api("/tb_doc_folders?select=*&order=name.asc")
     ]);
-    allStaff = e; tasks = t; routines = r; activity = a; notes = n; notepads = np;
+    allStaff = e; tasks = t; routines = r; activity = a; notes = n; notepads = np; docs = dc; docFolders = df;
     const st = (s||[]).find(x=>x.key==="sites");
     sites = st && Array.isArray(st.value) ? st.value : [];
     const tm = (s||[]).find(x=>x.key==="team");
@@ -781,13 +802,13 @@ function renderNav(){
       <span class="t-name">${esc(e.full_name)}</span>
       <span class="t-counts">${nn?`<span title="${nn} sticky note${nn===1?'':'s'}">📌</span>`:""}${red?`<span class="sdot" style="background:var(--red)" title="${red} urgent"></span>`:""}${open.length}</span></button>`;
   }).join("");
-  $("teamList").querySelectorAll(".team-row").forEach(b => b.onclick = () => { view="profile"; profileEmp=b.dataset.emp; focusNotepad=true; render(); });
+  $("teamList").querySelectorAll(".team-row").forEach(b => b.onclick = () => { view="profile"; if(profileEmp!==b.dataset.emp){ profileTab="notes"; currentDocFolder=""; } profileEmp=b.dataset.emp; focusNotepad=true; render(); });
   $("legend").innerHTML = ORDER.map(k =>
     `<div class="legend-row">${statusDot(k)}<span>${STATUSES[k].label}</span><span class="meaning">${STATUSES[k].meaning}</span></div>`).join("");
 }
 function render(){
   // don't wipe the page while someone is typing a sticky note or dragging one (background sync keeps running)
-  if (noteDragging || (document.activeElement && document.activeElement.closest && document.activeElement.closest(".sn-body, .np-body"))) return;
+  if (noteDragging || (document.activeElement && ((document.activeElement.closest && document.activeElement.closest(".sn-body, .np-body")) || document.activeElement.id==="newFolderName"))) return;
   document.body.classList.toggle("profile-mode", view==="profile");
   renderNav();
   const c = $("content");
@@ -890,6 +911,15 @@ function vProfile(){
       <span style="color:var(--ink)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span>
       <span style="color:var(--muted);font-weight:500;">${g.length}</span></div>${g.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`;
   };
+  if (profileTab==="docs"){
+    return `<div class="profile-head">
+      <span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>
+      <div><div class="p-name">${esc(e.full_name)}</div><div class="p-role">${esc(e.role||"Team member")} · 📁 ${docs.filter(d=>d.employee_id===e.id).length} document${docs.filter(d=>d.employee_id===e.id).length===1?"":"s"}</div></div>
+      <div class="spacer"></div>
+      <button class="btn ghost tiny" data-edit-emp="${e.id}">✎ Edit</button>
+      <button class="btn primary tiny" data-add-emp-task="${e.id}">+ Add task</button>
+    </div>` + vDocsPanel(e);
+  }
   const myNotes = notes.filter(n=>n.employee_id===e.id);
   const canvasH = Math.max(1400, ...myNotes.map(n=>(n.y||0)+400));
   const canvasW = Math.max(2400, ...myNotes.map(n=>(n.x||0)+500));
@@ -937,6 +967,7 @@ function vProfile(){
         <span class="ne-sep"></span>
         <button type="button" id="npAttach" title="Attach photo / file / zip">📎 Attach</button>
         <button type="button" data-add-note="${e.id}" title="Drop a sticky note onto this page">📌 Sticky note</button>
+        <button type="button" id="npDocsBtn" title="This employee’s documents">📁 Documents${docs.filter(d=>d.employee_id===e.id).length?` (${docs.filter(d=>d.employee_id===e.id).length})`:""}</button>
         <div class="spacer"></div>
         <span class="m-meta">${(()=>{const p=notepads.find(x=>x.employee_id===e.id); return p&&p.updated_at? "saved "+fmtWhen(p.updated_at)+(p.updated_by?" · "+esc(p.updated_by.split(" ")[0]):"") : "saves automatically";})()}</span>
       </div>
@@ -964,6 +995,109 @@ function vProfile(){
     </div>`;
 }
 
+function docUrl(d){ return SB_STORE + "/object/public/employee-docs/" + d.path; }
+function fmtSize(b){ if(b==null||b==="") return ""; b=+b; if(b<1024) return b+" B"; if(b<1048576) return Math.round(b/1024)+" KB"; return (b/1048576).toFixed(1)+" MB"; }
+function docIcon(d){ const n=(d.name||"").toLowerCase();
+  if(/\.pdf$/.test(n)) return "📕"; if(/\.(png|jpe?g|gif|webp|heic|svg|bmp)$/.test(n)) return "🖼️";
+  if(/\.(xlsx?|xlsm|csv)$/.test(n)) return "📊"; if(/\.(docx?|rtf|txt)$/.test(n)) return "📝";
+  if(/\.(zip|rar|7z)$/.test(n)) return "📦"; return "📄"; }
+function vDocsPanel(e){
+  const inFolder = currentDocFolder;
+  const myFolders = docFolders.filter(f=>f.employee_id===e.id);
+  const myDocs = docs.filter(d=>d.employee_id===e.id && (d.folder||"")===inFolder);
+  const folderCards = !inFolder ? myFolders.map(f=>{
+    const cnt = docs.filter(d=>d.employee_id===e.id && (d.folder||"")===f.name).length;
+    return `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(f.name)}</div><div class="df-cnt">${cnt} file${cnt===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`;
+  }).join("") : "";
+  const rows = myDocs.map(d=>`<div class="doc-row">
+    <span class="doc-ic">${docIcon(d)}</span>
+    <a class="doc-name" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="Open to view or print">${esc(d.name)}</a>
+    <span class="doc-meta">${fmtSize(d.size)} · ${fmtWhen(d.created_at)}${d.uploaded_by?` · ${esc(d.uploaded_by.split(" ")[0])}`:""}</span>
+    <span class="rt-actions">
+      <a class="btn ghost tiny" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="View / print">👁 View</a>
+      <button class="btn ghost tiny" data-dl-doc="${d.id}" title="Download">⬇</button>
+      <button class="icon-btn" data-del-doc="${d.id}" title="Delete">×</button>
+    </span></div>`).join("");
+  return `<div class="panel np-panel">
+    <div class="ne-toolbar">
+      <button type="button" id="docsBack">🗒 Notes</button>
+      <span class="ne-sep"></span>
+      <span style="font-weight:700;font-size:13px;">📁 ${esc(e.full_name.split(" ")[0])}’s documents${inFolder?` / ${esc(inFolder)}`:""}</span>
+      ${inFolder?`<button type="button" class="btn ghost tiny" id="folderUp" style="margin-left:8px;">⬅ All documents</button>`:""}
+      <div class="spacer"></div>
+      ${!inFolder?`<button type="button" id="docNewFolder">＋ New folder</button>`:""}
+      <button type="button" id="docUploadBtn">⬆ Upload files</button>
+    </div>
+    <div class="docs-area" id="docsArea">
+      <div id="newFolderRow" style="display:none;padding:4px 2px 10px;"><input id="newFolderName" placeholder="Folder name — press Enter…" style="padding:7px 11px;border:1px solid var(--line);border-radius:6px;font-size:13px;width:260px;background:var(--page);"></div>
+      ${folderCards?`<div class="doc-folders">${folderCards}</div>`:""}
+      ${rows || `<div class="empty" style="padding:50px 10px;">No documents${inFolder?" in this folder":""} yet — click “⬆ Upload files” or drag &amp; drop files anywhere here.<br>Click a file’s name to view it; print from the viewer, or ⬇ to download.</div>`}
+    </div>
+  </div>`;
+}
+async function uploadDocs(files){
+  if(!files.length || !profileEmp) return;
+  toast("Uploading "+files.length+" file"+(files.length>1?"s":"")+"…");
+  for (const f of files){
+    try{
+      const safe=(f.name||"file").replace(/[^a-zA-Z0-9._-]/g,"_").slice(-80);
+      const sub=currentDocFolder? currentDocFolder.replace(/[^a-zA-Z0-9._ -]/g,"_")+"/" : "";
+      const path=profileEmp+"/"+sub+Date.now()+"-"+safe;
+      const res=await fetch(SB_STORE+"/object/employee-docs/"+path, {method:"POST",
+        headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":f.type||"application/octet-stream","x-upsert":"true"}, body:f});
+      if(!res.ok) throw new Error("upload "+res.status);
+      await api("/tb_docs", {method:"POST", body:JSON.stringify({employee_id:profileEmp, folder:currentDocFolder||"", name:f.name||"file", path, type:f.type||"", size:f.size||0, uploaded_by:meName()})});
+    }catch(err){ console.error(err); setOnline(false); toast("Upload failed: "+(f.name||"")); }
+  }
+  await logActivity("documents uploaded", null, files.length+" file(s) — "+empName(profileEmp)+(currentDocFolder?" / "+currentDocFolder:""));
+  toast("Uploaded ✓");
+  await loadAll(true);
+}
+function wireDocs(c){
+  const btn=c.querySelector("#npDocsBtn"); if(btn) btn.onclick=()=>{ profileTab="docs"; render(); };
+  const back=c.querySelector("#docsBack"); if(back) back.onclick=()=>{ profileTab="notes"; render(); };
+  const area=c.querySelector("#docsArea");
+  if(!area) return;
+  const up=c.querySelector("#folderUp"); if(up) up.onclick=()=>{ currentDocFolder=""; render(); };
+  c.querySelectorAll("[data-open-folder]").forEach(el=>el.onclick=ev=>{ if(ev.target.closest(".rm")) return; currentDocFolder=el.dataset.openFolder; render(); });
+  const nfBtn=c.querySelector("#docNewFolder"); if(nfBtn) nfBtn.onclick=()=>{ const row=c.querySelector("#newFolderRow"); row.style.display=""; row.querySelector("input").focus(); };
+  const nfIn=c.querySelector("#newFolderName"); if(nfIn) nfIn.addEventListener("keydown", async ev=>{
+    if(ev.key==="Enter" && nfIn.value.trim()){
+      try{
+        await api("/tb_doc_folders", {method:"POST", body:JSON.stringify({employee_id:profileEmp, name:nfIn.value.trim()})});
+        await logActivity("folder created", null, nfIn.value.trim()+" ("+empName(profileEmp)+")");
+        await loadAll(true);
+      }catch(e){ console.error(e); setOnline(false); toast("Couldn’t create folder"); }
+    }});
+  c.querySelectorAll("[data-del-folder]").forEach(b=>b.onclick=async ev=>{ ev.stopPropagation();
+    const f=docFolders.find(x=>x.id===b.dataset.delFolder); if(!f) return;
+    const cnt=docs.filter(d=>d.employee_id===profileEmp && (d.folder||"")===f.name).length;
+    if(cnt){ toast("Folder isn’t empty — delete its files first"); return; }
+    if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.style.color="var(--red)"; toast("Click × again to delete the folder"); return; }
+    try{ await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"DELETE"}); await loadAll(true);
+    }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete folder"); }});
+  const upBtn=c.querySelector("#docUploadBtn"); if(upBtn) upBtn.onclick=()=>{
+    const inp=document.createElement("input"); inp.type="file"; inp.multiple=true;
+    inp.onchange=()=>uploadDocs([...inp.files]); inp.click(); };
+  area.addEventListener("dragover", ev=>{ ev.preventDefault(); area.classList.add("dropping"); });
+  area.addEventListener("dragleave", ()=>area.classList.remove("dropping"));
+  area.addEventListener("drop", ev=>{ ev.preventDefault(); area.classList.remove("dropping");
+    const fs=[...((ev.dataTransfer||{}).files||[])]; if(fs.length) uploadDocs(fs); });
+  c.querySelectorAll("[data-dl-doc]").forEach(b=>b.onclick=async ()=>{
+    const d=docs.find(x=>x.id===b.dataset.dlDoc); if(!d) return;
+    try{ const r=await fetch(docUrl(d)); const bl=await r.blob();
+      const a=document.createElement("a"); a.href=URL.createObjectURL(bl); a.download=d.name||"document"; a.click(); URL.revokeObjectURL(a.href);
+    }catch(e){ console.error(e); toast("Download failed"); }});
+  c.querySelectorAll("[data-del-doc]").forEach(b=>b.onclick=async ()=>{
+    const d=docs.find(x=>x.id===b.dataset.delDoc); if(!d) return;
+    if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.style.color="var(--red)"; toast("Click × again to delete "+(d.name||"file")); return; }
+    try{
+      await fetch(SB_STORE+"/object/employee-docs/"+d.path, {method:"DELETE", headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}});
+      await api(`/tb_docs?id=eq.${d.id}`, {method:"DELETE"});
+      await logActivity("document deleted", null, d.name);
+      await loadAll(true);
+    }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete"); }});
+}
 /* ---- Board ---- */
 function vBoard(){
   const ft = filteredTasks();
@@ -1092,7 +1226,7 @@ function vSettings(){
 function wire(c){
   c.querySelectorAll("[data-goto-status]").forEach(el=>el.onclick=()=>{ $("fStatus").value=el.dataset.gotoStatus; $("fDue").value=""; view="list"; render(); });
   c.querySelectorAll("[data-goto-view]").forEach(el=>el.onclick=()=>{ view=el.dataset.gotoView; render(); });
-  c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ view="profile"; profileEmp=el.dataset.gotoEmp; focusNotepad=true; render(); });
+  c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ view="profile"; if(profileEmp!==el.dataset.gotoEmp){ profileTab="notes"; currentDocFolder=""; } profileEmp=el.dataset.gotoEmp; focusNotepad=true; render(); });
   c.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openTask(el.dataset.open));
   c.querySelectorAll("[data-done]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleDone(el.dataset.done); });
   c.querySelectorAll(".card").forEach(el=>{
@@ -1136,6 +1270,7 @@ function wire(c){
   const ns=$("newSite"); if(ns) ns.addEventListener("keydown", async e=>{
     if(e.key==="Enter" && ns.value.trim()){ sites.push(ns.value.trim()); await saveSites("added site "+ns.value.trim()); }});
   wireNotes(c);
+  wireDocs(c);
 }
 /* ---------- Sticky notes wiring ---------- */
 /* ---------- Rich text commands & keyboard shortcuts ---------- */
