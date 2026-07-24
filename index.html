@@ -394,6 +394,9 @@
   .hl-dot{width:17px; height:17px; border-radius:5px; border:1px solid rgba(11,11,11,.22); padding:0; vertical-align:middle;}
   .hl-dot:hover{transform:scale(1.15); border-color:rgba(11,11,11,.5);}
   .hl-none{background:var(--surface); font-size:9px; color:var(--muted); display:inline-flex; align-items:center; justify-content:center;}
+  [data-ne="hl"].hl-on{box-shadow:0 0 0 2px var(--ink); font-weight:800;}
+  [data-ne].fmt-on{background:var(--surface-2); color:var(--ink); font-weight:800; box-shadow:inset 0 -2px 0 var(--ink); border-radius:6px;}
+  .hl-dot.hl-on{box-shadow:0 0 0 2px var(--ink); transform:scale(1.12);}
   .ne-body{flex:1; overflow-y:auto; outline:none; font-size:14.5px; line-height:1.55; padding:8px 4px;}
   .ne-body:empty::before{content:"Write anything — Heading, Subheading, Body, checklists, paste photos & files…"; color:var(--muted);}
   .ne-body img{max-width:100%; border-radius:6px; display:block; margin:4px 0;}
@@ -1449,8 +1452,8 @@ function applyCmd(cmd){
     case "ol": document.execCommand("insertOrderedList"); break;
     case "chk": document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;to do</span></div>'); break;
     case "hl": {
-      let cur=""; try{ cur = document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || ""; }catch(_){ }
-      const on = /rgb\(255,\s*241,\s*118\)|#fff176/i.test(String(cur));
+      let cur=""; try{ cur = String(document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || ""); }catch(_){ }
+      const on = Object.values(HL_RGB).includes(cur) || /#fff176/i.test(cur);
       document.execCommand("hiliteColor", false, on ? "transparent" : "#fff176");
       break;
     }
@@ -1460,7 +1463,36 @@ function applyCmd(cmd){
         document.execCommand("hiliteColor", false, c==="none" ? "transparent" : c);
       }
   }
+  setTimeout(updateHLState, 0);
 }
+const HL_RGB = {"#fff176":"rgb(255, 241, 118)","#b9f6ca":"rgb(185, 246, 202)","#ffcdd2":"rgb(255, 205, 210)","#b3e5fc":"rgb(179, 229, 252)","#ffe0b2":"rgb(255, 224, 178)"};
+function updateHLState(){
+  const t=document.activeElement;
+  const inRich = t && t.classList && t.classList.contains("rich-target");
+  let cur="", st={block:""};
+  if (inRich){
+    try{ cur = String(document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || ""); }catch(_){ }
+    ["bold","italic","underline","insertUnorderedList","insertOrderedList"].forEach(c=>{
+      try{ st[c]=document.queryCommandState(c); }catch(_){ st[c]=false; } });
+    try{ st.block = String(document.queryCommandValue("formatBlock")||"").toLowerCase(); }catch(_){ }
+  }
+  const hlActive = Object.values(HL_RGB).includes(cur);
+  document.querySelectorAll("[data-ne]").forEach(b=>{
+    const k=b.dataset.ne||"";
+    if (k==="hl"){ b.classList.toggle("hl-on", hlActive);
+      b.title = hlActive? "Highlight ON — click to remove" : "Highlight — Cmd/Ctrl+Shift+E"; }
+    else if (k.startsWith("hl:#")) b.classList.toggle("hl-on", HL_RGB[k.slice(3)]===cur);
+    else if (k==="bold") b.classList.toggle("fmt-on", !!st.bold);
+    else if (k==="italic") b.classList.toggle("fmt-on", !!st.italic);
+    else if (k==="underline") b.classList.toggle("fmt-on", !!st.underline);
+    else if (k==="ul") b.classList.toggle("fmt-on", !!st.insertUnorderedList);
+    else if (k==="ol") b.classList.toggle("fmt-on", !!st.insertOrderedList);
+    else if (k==="h") b.classList.toggle("fmt-on", st.block==="h2");
+    else if (k==="sub") b.classList.toggle("fmt-on", st.block==="h3");
+    else if (k==="body") b.classList.toggle("fmt-on", inRich && (st.block==="div"||st.block==="p"));
+  });
+}
+document.addEventListener("selectionchange", updateHLState);
 function richAutosave(t){
   const nb = t.closest ? t.closest("[data-note-body]") : null;
   if (nb) saveNote(nb.dataset.noteBody);
