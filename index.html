@@ -450,6 +450,7 @@
       <div class="sp-cols">
       <div>
       <div class="frow"><label>Deadline *</label><input type="date" id="mDue">
+        <input type="time" id="mDueTime" title="Time (optional)">
         <label style="flex:0 0 auto;">Repeats</label>
         <select id="mRec"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
       <div class="frow"><label>Urgency</label><div class="urg-picker" id="mUrgency"></div></div>
@@ -675,8 +676,16 @@ function avColor(emp){ if (emp && emp.color) return emp.color;
 function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function plusDays(n){ const d=new Date(); d.setDate(d.getDate()+n);
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
-function isOverdue(t){ return t.due_date && t.status!=="green" && t.due_date < todayStr(); }
+function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function tTime(t){ return t.due_time ? String(t.due_time).slice(0,5) : ""; }
+function isOverdue(t){
+  if (!t.due_date || t.status==="green") return false;
+  if (t.due_date < todayStr()) return true;
+  return t.due_date === todayStr() && !!tTime(t) && tTime(t) <= nowHM();
+}
 function isDueToday(t){ return t.due_date === todayStr() && t.status!=="green"; }
+function dueKey(t){ return (t.due_date||"9999-99-99") + "T" + (tTime(t)||"23:59"); }
+function dueLabel(t){ return (isDueToday(t)?"Today":fmtDate(t.due_date)) + (tTime(t)?" "+tTime(t):""); }
 function workingDaysUntil(dateStr){
   const today = new Date(todayStr()+"T00:00:00");
   const due = new Date(dateStr+"T00:00:00");
@@ -814,7 +823,7 @@ function cardHTML(t, opts){
       ${!opts.hideOwner ? (e?`<span class="who"><span class="avatar" style="width:20px;height:20px;font-size:9px;background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name.split(" ")[0])}</span>`:'<span class="badge">Unassigned</span>') : ""}
       ${t.quadrant?`<span class="badge quad" title="${QUADS[t.quadrant].label} — ${QUADS[t.quadrant].sub}">${QUADS[t.quadrant].code}</span>`:""}
       ${t.site?`<span class="badge">📍 ${esc(t.site)}</span>`:""}
-      ${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${isDueToday(t)?'Today':fmtDate(t.due_date)}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}
+      ${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${dueLabel(t)}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}
       ${t.waiting_on?`<span class="badge wait" title="Waiting on ${esc(t.waiting_on)}">⏳ ${esc(t.waiting_on)}</span>`:""}
       ${cl.length?`<span class="badge">☑ ${done}/${cl.length}</span>`:""}
       ${t.recurrence && t.recurrence!=="none"?`<span class="badge" title="Repeats ${t.recurrence}">↻</span>`:""}
@@ -875,7 +884,7 @@ function vProfile(){
   const completed = mine.filter(t=>t.status==="green")
     .sort((a,b)=>(a.completed_at||"")<(b.completed_at||"")?1:-1).slice(0,10);
   const group = k => {
-    const g = open.filter(t=>urgency(t)===k).sort((a,b)=>(a.due_date||"9999")<(b.due_date||"9999")?-1:1);
+    const g = open.filter(t=>urgency(t)===k).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
     if (!g.length) return "";
     return `<div class="p-group"><div class="pg-head" style="color:${STATUSES[k].color}">${statusDot(k)}
       <span style="color:var(--ink)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span>
@@ -959,7 +968,7 @@ function vProfile(){
 function vBoard(){
   const ft = filteredTasks();
   return `<div class="board">` + ORDER.map(k => {
-    const col = ft.filter(t=>urgency(t)===k).sort((a,b)=>(a.due_date||"9999")<(b.due_date||"9999")?-1:1);
+    const col = ft.filter(t=>urgency(t)===k).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
     return `<div class="col" data-col="${k}">
       <div class="col-head" style="color:${STATUSES[k].color}">${statusDot(k)}<span style="color:var(--ink)">${STATUSES[k].label}</span>
         <span class="cmeaning">${STATUSES[k].meaning}</span><span class="cnt">${col.length}</span></div>
@@ -991,7 +1000,7 @@ function vList(){
   let ft = filteredTasks();
   const dir = sortAsc?1:-1;
   ft = ft.slice().sort((a,b)=>{
-    if (sortKey==="due") return ((a.due_date||"9999")<(b.due_date||"9999")?-1:1)*dir;
+    if (sortKey==="due") return (dueKey(a)<dueKey(b)?-1:1)*dir;
     if (sortKey==="status") return (ORDER.indexOf(urgency(a))-ORDER.indexOf(urgency(b)))*dir;
     if (sortKey==="emp") return empName(a.employee_id).localeCompare(empName(b.employee_id))*dir;
     if (sortKey==="site") return String(a.site||"").localeCompare(String(b.site||""))*dir;
@@ -1010,7 +1019,7 @@ function vList(){
         ${t.waiting_on?` <span class="badge wait">⏳ ${esc(t.waiting_on)}</span>`:""}</td>
       <td>${e?`<span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td>${t.site?esc(t.site):'<span style="color:var(--muted)">—</span>'}</td>
-      <td>${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${fmtDate(t.due_date)}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}</td>
+      <td>${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${fmtDate(t.due_date)}${tTime(t)?' '+tTime(t):''}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}</td>
       <td>${cl.length?`☑ ${cl.filter(i=>i.done).length}/${cl.length}`:'<span style="color:var(--muted)">—</span>'}</td>
       <td style="color:var(--muted);font-size:12px;">${fmtWhen(t.updated_at)}${t.touched_by?` · ${esc(t.touched_by.split(" ")[0])}`:""}</td></tr>`;
   }).join("");
@@ -1648,6 +1657,7 @@ function openTask(id, preset){
   $("mEmp").value = editing.employee_id||"";
   $("mSite").value = editing.site||"";
   $("mDue").value = editing.due_date||"";
+  $("mDueTime").value = editing.due_time ? String(editing.due_time).slice(0,5) : "";
   $("mRec").value = editing.recurrence||"none";
   setNotes(editing.description||"");
   $("mDelete").style.display = t? "" : "none";
@@ -1766,7 +1776,7 @@ $("mSave").onclick=async ()=>{
   const payload={ title, description:sanitizeHtml($("mDesc").innerHTML), employee_id:$("mEmp").value||null,
     status:editing.status==="green" ? "green" : "amber", urgency_override:editing.urgency_override||null,
     quadrant:editing.quadrant||null, site:$("mSite").value||null,
-    due_date:$("mDue").value, recurrence:$("mRec").value, waiting_on:editing.waiting_on||"",
+    due_date:$("mDue").value, due_time:$("mDueTime").value||null, recurrence:$("mRec").value, waiting_on:editing.waiting_on||"",
     checklist:editing.checklist, links:editing.links, images:editing.images,
     updated_at:new Date().toISOString(), touched_by: meName() };
   try{
@@ -1932,13 +1942,13 @@ $("rDelete").onclick=async ()=>{
 $("btnNew").onclick=()=>openTask(null, view==="profile" && profileEmp ? {employee_id:profileEmp} : null);
 $("btnPrint").onclick=()=>window.print();
 $("btnExport").onclick=()=>{
-  const head=["Title","Urgency","Meaning","Quadrant","Owner","Site","Deadline","Past deadline","Waiting on","Repeats","Checklist done","Checklist total","Photos","Description","Links","Last touched","Touched by","Created","Completed"];
+  const head=["Title","Urgency","Meaning","Quadrant","Owner","Site","Deadline","Deadline time","Past deadline","Waiting on","Repeats","Checklist done","Checklist total","Photos","Description","Links","Last touched","Touched by","Created","Completed"];
   const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
   const lines=[head.join(",")];
   tasks.forEach(t=>{
     const u=urgency(t);
     const cl=Array.isArray(t.checklist)?t.checklist:[];
-    lines.push([q(t.title), u, STATUSES[u].meaning, t.quadrant?QUADS[t.quadrant].label:"", q(empName(t.employee_id)), q(t.site||""), t.due_date||"", isOverdue(t)?"YES":"", q(t.waiting_on||""), t.recurrence||"",
+    lines.push([q(t.title), u, STATUSES[u].meaning, t.quadrant?QUADS[t.quadrant].label:"", q(empName(t.employee_id)), q(t.site||""), t.due_date||"", tTime(t), isOverdue(t)?"YES":"", q(t.waiting_on||""), t.recurrence||"",
       cl.filter(i=>i.done).length, cl.length, (t.images||[]).length, q(t.description||""), q((t.links||[]).map(l=>l.url).join(" ")),
       (t.updated_at||"").slice(0,16).replace("T"," "), q(t.touched_by||""), (t.created_at||"").slice(0,10), (t.completed_at||"").slice(0,10)].join(","));
   });
