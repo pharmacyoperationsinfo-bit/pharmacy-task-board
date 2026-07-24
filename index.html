@@ -324,6 +324,27 @@
   .doc-name:hover{text-decoration:underline; color:var(--accent);}
   .doc-meta{color:var(--muted); font-size:12px;}
   .doc-row .rt-actions{margin-left:auto;}
+  .dv-switch{display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden;}
+  .dv-switch button{padding:3px 10px; font-size:12.5px; color:var(--muted); border-radius:0;}
+  .dv-switch button.on{background:var(--surface-2); color:var(--ink); font-weight:700;}
+  .doc-table{margin-top:4px;}
+  .doc-table td{padding:7px 10px;}
+  .doc-table th{padding:7px 10px;}
+  .doc-grid{display:grid; gap:12px;}
+  .doc-grid.large{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+  .doc-grid.small{grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); gap:8px;}
+  .doc-tile{position:relative; background:var(--surface); border:1px solid var(--ring); border-radius:10px; padding:10px 8px 8px; text-align:center;}
+  .doc-tile:hover{box-shadow:0 2px 8px rgba(11,11,11,.10);}
+  .doc-tile .dt-link{text-decoration:none; color:var(--ink); display:block;}
+  .doc-grid.large .dt-ic{font-size:46px; line-height:1;}
+  .doc-grid.large .dt-ic img{width:100%; height:92px; object-fit:cover; border-radius:7px; display:block;}
+  .doc-grid.small .dt-ic{font-size:26px; line-height:1;}
+  .doc-grid.small .dt-ic img{width:100%; height:52px; object-fit:cover; border-radius:6px; display:block;}
+  .dt-name{display:block; font-size:12px; font-weight:600; margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .doc-grid.small .dt-name{font-size:11px;}
+  .dt-meta{display:block; font-size:10.5px; color:var(--muted); margin-top:1px;}
+  .dt-actions{position:absolute; top:4px; right:5px; display:none; gap:2px; background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:1px 2px;}
+  .doc-tile:hover .dt-actions{display:inline-flex;}
   .notes-panel summary::-webkit-details-marker{display:none;}
   .notes-panel summary:hover{background:var(--surface-2);}
   .notes-canvas{position:relative; background:var(--surface);
@@ -625,7 +646,7 @@ const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","
 
 /* ================= State ================= */
 let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], notepads = [], docs = [], docFolders = [];
-let profileTab = "notes", currentDocFolder = "";
+let profileTab = "notes", currentDocFolder = "", docView = "list";
 let focusNotepad = false;
 let view = "dashboard";
 let profileEmp = null;
@@ -997,6 +1018,7 @@ function vProfile(){
 
 function docUrl(d){ return SB_STORE + "/object/public/employee-docs/" + d.path; }
 function fmtSize(b){ if(b==null||b==="") return ""; b=+b; if(b<1024) return b+" B"; if(b<1048576) return Math.round(b/1024)+" KB"; return (b/1048576).toFixed(1)+" MB"; }
+function isImgDoc(d){ return /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i.test(d.name||""); }
 function docIcon(d){ const n=(d.name||"").toLowerCase();
   if(/\.pdf$/.test(n)) return "📕"; if(/\.(png|jpe?g|gif|webp|heic|svg|bmp)$/.test(n)) return "🖼️";
   if(/\.(xlsx?|xlsm|csv)$/.test(n)) return "📊"; if(/\.(docx?|rtf|txt)$/.test(n)) return "📝";
@@ -1009,15 +1031,33 @@ function vDocsPanel(e){
     const cnt = docs.filter(d=>d.employee_id===e.id && (d.folder||"")===f.name).length;
     return `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(f.name)}</div><div class="df-cnt">${cnt} file${cnt===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`;
   }).join("") : "";
-  const rows = myDocs.map(d=>`<div class="doc-row">
-    <span class="doc-ic">${docIcon(d)}</span>
-    <a class="doc-name" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="Open to view or print">${esc(d.name)}</a>
-    <span class="doc-meta">${fmtSize(d.size)} · ${fmtWhen(d.created_at)}${d.uploaded_by?` · ${esc(d.uploaded_by.split(" ")[0])}`:""}</span>
-    <span class="rt-actions">
-      <a class="btn ghost tiny" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="View / print">👁 View</a>
-      <button class="btn ghost tiny" data-dl-doc="${d.id}" title="Download">⬇</button>
-      <button class="icon-btn" data-del-doc="${d.id}" title="Delete">×</button>
-    </span></div>`).join("");
+  const docType = d => { const n=(d.name||"").toLowerCase(); const m=n.match(/\.([a-z0-9]+)$/);
+    return m ? m[1].toUpperCase()+" file" : (d.type||"File"); };
+  const rows = docView==="list"
+    ? (myDocs.length? `<table class="grid doc-table"><thead><tr><th></th><th>Name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>By</th><th></th></tr></thead><tbody>` +
+      myDocs.map(d=>`<tr>
+        <td style="width:30px;font-size:18px;">${docIcon(d)}</td>
+        <td><a class="doc-name" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="Open to view or print">${esc(d.name)}</a></td>
+        <td style="color:var(--muted);">${esc(docType(d))}</td>
+        <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${fmtSize(d.size)}</td>
+        <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${fmtWhen(d.created_at)}</td>
+        <td style="color:var(--muted);">${d.uploaded_by?esc(d.uploaded_by.split(" ")[0]):"—"}</td>
+        <td><span class="rt-actions">
+          <a class="btn ghost tiny" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="View / print">👁 View</a>
+          <button class="btn ghost tiny" data-dl-doc="${d.id}" title="Download">⬇</button>
+          <button class="icon-btn" data-del-doc="${d.id}" title="Delete">×</button>
+        </span></td></tr>`).join("") + `</tbody></table>` : "")
+    : (myDocs.length? `<div class="doc-grid ${docView}">` + myDocs.map(d=>`<div class="doc-tile">
+        <a class="dt-link" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="${esc(d.name)} — click to view / print">
+          <span class="dt-ic">${isImgDoc(d)?`<img src="${esc(docUrl(d))}" loading="lazy" alt="">`:docIcon(d)}</span>
+          <span class="dt-name">${esc(d.name)}</span>
+          ${docView==="large"?`<span class="dt-meta">${fmtSize(d.size)}</span>`:""}
+        </a>
+        <span class="dt-actions">
+          <button class="sn-btn" data-dl-doc="${d.id}" title="Download">⬇</button>
+          <button class="sn-btn" data-del-doc="${d.id}" title="Delete">×</button>
+        </span>
+      </div>`).join("") + `</div>` : "");
   return `<div class="panel np-panel">
     <div class="ne-toolbar">
       <button type="button" id="docsBack">🗒 Notes</button>
@@ -1025,6 +1065,12 @@ function vDocsPanel(e){
       <span style="font-weight:700;font-size:13px;">📁 ${esc(e.full_name.split(" ")[0])}’s documents${inFolder?` / ${esc(inFolder)}`:""}</span>
       ${inFolder?`<button type="button" class="btn ghost tiny" id="folderUp" style="margin-left:8px;">⬅ All documents</button>`:""}
       <div class="spacer"></div>
+      <span class="dv-switch">
+        <button type="button" data-dv="list" class="${docView==='list'?'on':''}" title="List view">☰</button>
+        <button type="button" data-dv="large" class="${docView==='large'?'on':''}" title="Large icons">▦</button>
+        <button type="button" data-dv="small" class="${docView==='small'?'on':''}" title="Small icons">▫▫</button>
+      </span>
+      <span class="ne-sep"></span>
       ${!inFolder?`<button type="button" id="docNewFolder">＋ New folder</button>`:""}
       <button type="button" id="docUploadBtn">⬆ Upload files</button>
     </div>
@@ -1059,6 +1105,7 @@ function wireDocs(c){
   const area=c.querySelector("#docsArea");
   if(!area) return;
   const up=c.querySelector("#folderUp"); if(up) up.onclick=()=>{ currentDocFolder=""; render(); };
+  c.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{ docView=b.dataset.dv; render(); });
   c.querySelectorAll("[data-open-folder]").forEach(el=>el.onclick=ev=>{ if(ev.target.closest(".rm")) return; currentDocFolder=el.dataset.openFolder; render(); });
   const nfBtn=c.querySelector("#docNewFolder"); if(nfBtn) nfBtn.onclick=()=>{ const row=c.querySelector("#newFolderRow"); row.style.display=""; row.querySelector("input").focus(); };
   const nfIn=c.querySelector("#newFolderName"); if(nfIn) nfIn.addEventListener("keydown", async ev=>{
