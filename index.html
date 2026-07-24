@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pharmacy Task Board</title>
+<title>Clinix Flow</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
@@ -379,8 +379,8 @@
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo">Rx</div>
-      <div><div class="name">Task Board</div><div class="sub">Pharmacy Operations</div></div>
+      <div class="logo">CF</div>
+      <div><div class="name">Clinix Flow</div><div class="sub">Pharmacy Operations</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
     <div class="side-label">Team</div>
@@ -1944,7 +1944,7 @@ $("btnExport").onclick=()=>{
   });
   const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-  a.download="task-board-"+todayStr()+".csv"; a.click(); URL.revokeObjectURL(a.href);
+  a.download="clinix-flow-"+todayStr()+".csv"; a.click(); URL.revokeObjectURL(a.href);
   toast("CSV downloaded");
 };
 document.addEventListener("keydown", e=>{
