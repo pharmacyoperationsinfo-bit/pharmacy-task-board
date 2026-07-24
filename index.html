@@ -324,6 +324,9 @@
   .doc-name:hover{text-decoration:underline; color:var(--accent);}
   .doc-meta{color:var(--muted); font-size:12px;}
   .doc-row .rt-actions{margin-left:auto;}
+  .tt-tabs{display:flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; margin-bottom:8px;}
+  .tt-tabs button{flex:1; padding:4px 6px; font-size:11.5px; color:var(--muted); border-radius:0;}
+  .tt-tabs button.on{background:var(--surface); color:var(--ink); font-weight:700; box-shadow:inset 0 -2px 0 var(--ink);}
   .dv-switch{display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden;}
   .dv-switch button{padding:3px 10px; font-size:12.5px; color:var(--muted); border-radius:0;}
   .dv-switch button.on{background:var(--surface-2); color:var(--ink); font-weight:700;}
@@ -646,7 +649,7 @@ const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","
 
 /* ================= State ================= */
 let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], notepads = [], docs = [], docFolders = [];
-let profileTab = "notes", currentDocFolder = "", docView = "list";
+let profileTab = "notes", currentDocFolder = "", docView = "list", taskTab = "adhoc";
 let focusNotepad = false;
 let view = "dashboard";
 let profileEmp = null;
@@ -923,10 +926,12 @@ function vProfile(){
   const mine = tasks.filter(t=>t.employee_id===e.id);
   const rts = routines.filter(r=>r.employee_id===e.id);
   const open = mine.filter(t=>t.status!=="green");
-  const completed = mine.filter(t=>t.status==="green")
+  const isReg = t => t.recurrence && t.recurrence!=="none";
+  const openTab = open.filter(t=> taskTab==="regular" ? isReg(t) : !isReg(t));
+  const completed = mine.filter(t=>t.status==="green" && (taskTab==="regular" ? isReg(t) : !isReg(t)))
     .sort((a,b)=>(a.completed_at||"")<(b.completed_at||"")?1:-1).slice(0,10);
   const group = k => {
-    const g = open.filter(t=>urgency(t)===k).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
+    const g = openTab.filter(t=>urgency(t)===k).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
     if (!g.length) return "";
     return `<div class="p-group"><div class="pg-head" style="color:${STATUSES[k].color}">${statusDot(k)}
       <span style="color:var(--ink)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span>
@@ -1008,7 +1013,11 @@ function vProfile(){
             <div style="border-top:1px solid var(--line);margin:8px 0;"></div>`:""}
           <div class="rs-head" style="padding:2px 0 6px;display:flex;align-items:center;">Tasks · ${open.length} open
             <button class="btn ghost tiny" data-add-emp-task="${e.id}" style="margin-left:auto;padding:1px 8px;">＋</button></div>
-          ${open.length ? ORDER.slice(0,3).map(group).join("") : '<div class="empty" style="padding:14px 4px;">No open tasks</div>'}
+          <div class="tt-tabs">
+            <button type="button" data-tt="adhoc" class="${taskTab==='adhoc'?'on':''}">Ad hoc (${open.filter(t=>!isReg(t)).length})</button>
+            <button type="button" data-tt="regular" class="${taskTab==='regular'?'on':''}">↻ Regular (${open.filter(isReg).length})</button>
+          </div>
+          ${openTab.length ? ORDER.slice(0,3).map(group).join("") : `<div class="empty" style="padding:14px 4px;">No open ${taskTab==="regular"?"regular (repeating)":"ad hoc"} tasks</div>`}
           ${completed.length?`<div class="p-group"><div class="pg-head" style="color:var(--green)">${statusDot("green")}
             <span style="color:var(--ink)">Completed</span></div>${completed.slice(0,5).map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}
         </div>
@@ -1316,6 +1325,7 @@ function wire(c){
     sites.splice(ix,1); await saveSites("removed site "+removed); });
   const ns=$("newSite"); if(ns) ns.addEventListener("keydown", async e=>{
     if(e.key==="Enter" && ns.value.trim()){ sites.push(ns.value.trim()); await saveSites("added site "+ns.value.trim()); }});
+  c.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{ taskTab=b.dataset.tt; render(); });
   wireNotes(c);
   wireDocs(c);
 }
