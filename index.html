@@ -644,6 +644,7 @@
 <div class="ctx-menu" id="ctxMenu"></div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 "use strict";
 /* ================= Config ================= */
@@ -1617,10 +1618,11 @@ function richAutosave(t){
   else if (t.id==="npBody") saveNotepad();
 }
 /* ---------- Per-employee Notepad (type straight away) ---------- */
-let npTimer = null;
+let npTimer = null, npLastSave = 0;
 function saveNotepad(immediate){
   clearTimeout(npTimer);
   const doIt = () => {
+    npLastSave = Date.now();
     const el = $("npBody");
     if (!el) return;
     syncNoteCheckboxes(el);
@@ -1634,7 +1636,9 @@ function saveNotepad(immediate){
       body: JSON.stringify({employee_id:empId, content, updated_at:new Date().toISOString(), updated_by:meName()})})
       .then(()=>setOnline(true)).catch(err=>{ console.error(err); setOnline(false); });
   };
-  if (immediate) doIt(); else npTimer = setTimeout(doIt, 700);
+  if (immediate) doIt();
+  else if (Date.now() - npLastSave > 1200) npTimer = setTimeout(doIt, 150);
+  else npTimer = setTimeout(doIt, 700);
 }
 document.addEventListener("keydown", e=>{
   const t = document.activeElement;
@@ -2430,8 +2434,40 @@ document.addEventListener("keydown", e=>{
   }
 });
 
+/* ================= Live sync (Supabase Realtime) ================= */
+let rtTimer = null;
+function rtRefresh(){ clearTimeout(rtTimer); rtTimer = setTimeout(()=>loadAll(true), 250); }
+function typingHere(){ const ae=document.activeElement; return !!(ae && ae.closest && ae.closest(".sn-body, .np-body")); }
+function startRealtime(){
+  if (!window.supabase) return;
+  try {
+    const rtc = window.supabase.createClient(SB, SB_KEY);
+    const ch = rtc.channel("clinix-live");
+    const TABLES = ["tb_tasks","tb_notes","tb_notepads","tb_docs","tb_doc_folders","tb_activity","tb_settings","tb_routines"];
+    TABLES.forEach(tb => ch.on("postgres_changes", {event:"*", schema:"public", table:tb}, payload => {
+      if (tb === "tb_notepads" && payload.new && payload.new.employee_id){
+        const row = payload.new;
+        const ex = notepads.find(x=>x.employee_id===row.employee_id);
+        if (ex){ ex.content = row.content; ex.updated_at = row.updated_at; ex.updated_by = row.updated_by; }
+        else notepads.push(row);
+        const el = $("npBody");
+        if (el && el.dataset.emp === row.employee_id){
+          if (!typingHere() && sanitizeHtml(row.content||"") !== sanitizeHtml(el.innerHTML)){
+            el.innerHTML = sanitizeHtml(row.content||"");
+          }
+          return; // applied in place — no full re-render needed
+        }
+        return;
+      }
+      rtRefresh();
+    }));
+    ch.subscribe(status => { if (status === "SUBSCRIBED") setOnline(true); });
+  } catch(e){ console.error("realtime", e); }
+}
+
 /* ================= Go ================= */
 loadAll();
+startRealtime();
 setInterval(()=>loadAll(true), POLL_MS);
 </script>
 </body>
