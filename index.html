@@ -316,6 +316,9 @@
   .doc-folder .df-cnt{font-size:11px; color:var(--muted);}
   .doc-folder .rm{position:absolute; top:4px; right:8px; color:var(--muted); font-size:15px; visibility:hidden; margin:0;}
   .doc-folder:hover .rm{visibility:visible;}
+  .doc-folders.small .doc-folder{width:112px; padding:9px 8px 8px; font-size:20px;}
+  .doc-folders.small .df-name{font-size:11px;}
+  .doc-folders.small .df-cnt{font-size:10px;}
   .doc-folder .rm:hover{color:var(--red);}
   .doc-row{display:flex; align-items:center; gap:10px; padding:9px 8px; border-bottom:1px solid var(--line); font-size:13.5px;}
   .doc-row:hover{background:var(--surface-2);}
@@ -1034,17 +1037,22 @@ function docIcon(d){ const n=(d.name||"").toLowerCase();
   if(/\.(zip|rar|7z)$/.test(n)) return "📦"; return "📄"; }
 function vDocsPanel(e){
   const inFolder = currentDocFolder;
-  const myFolders = docFolders.filter(f=>f.employee_id===e.id);
+  const myFolders = !inFolder ? docFolders.filter(f=>f.employee_id===e.id) : [];
   const myDocs = docs.filter(d=>d.employee_id===e.id && (d.folder||"")===inFolder);
-  const folderCards = !inFolder ? myFolders.map(f=>{
-    const cnt = docs.filter(d=>d.employee_id===e.id && (d.folder||"")===f.name).length;
-    return `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(f.name)}</div><div class="df-cnt">${cnt} file${cnt===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`;
-  }).join("") : "";
+  const fCnt = f => docs.filter(d=>d.employee_id===e.id && (d.folder||"")===f.name).length;
   const docType = d => { const n=(d.name||"").toLowerCase(); const m=n.match(/\.([a-z0-9]+)$/);
     return m ? m[1].toUpperCase()+" file" : (d.type||"File"); };
-  const rows = docView==="list"
-    ? (myDocs.length? `<table class="grid doc-table"><thead><tr><th></th><th>Name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>By</th><th></th></tr></thead><tbody>` +
-      myDocs.map(d=>`<tr>
+  let body = "";
+  if (docView==="list"){
+    const folderRows = myFolders.map(f=>`<tr data-open-folder="${esc(f.name)}">
+        <td style="width:30px;font-size:18px;">📁</td>
+        <td><span class="doc-name" style="cursor:pointer;">${esc(f.name)}</span></td>
+        <td style="color:var(--muted);">Folder</td>
+        <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${fCnt(f)} file${fCnt(f)===1?"":"s"}</td>
+        <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${f.created_at?fmtWhen(f.created_at):"—"}</td>
+        <td style="color:var(--muted);">—</td>
+        <td><span class="rt-actions"><button class="icon-btn" data-del-folder="${f.id}" title="Delete folder">×</button></span></td></tr>`).join("");
+    const fileRows = myDocs.map(d=>`<tr>
         <td style="width:30px;font-size:18px;">${docIcon(d)}</td>
         <td><a class="doc-name" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="Open to view or print">${esc(d.name)}</a></td>
         <td style="color:var(--muted);">${esc(docType(d))}</td>
@@ -1055,8 +1063,13 @@ function vDocsPanel(e){
           <a class="btn ghost tiny" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="View / print">👁 View</a>
           <button class="btn ghost tiny" data-dl-doc="${d.id}" title="Download">⬇</button>
           <button class="icon-btn" data-del-doc="${d.id}" title="Delete">×</button>
-        </span></td></tr>`).join("") + `</tbody></table>` : "")
-    : (myDocs.length? `<div class="doc-grid ${docView}">` + myDocs.map(d=>`<div class="doc-tile">
+        </span></td></tr>`).join("");
+    if (folderRows || fileRows)
+      body = `<table class="grid doc-table"><thead><tr><th></th><th>Name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>By</th><th></th></tr></thead><tbody>${folderRows}${fileRows}</tbody></table>`;
+  } else {
+    const folderCards = myFolders.map(f=>
+      `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(f.name)}</div><div class="df-cnt">${fCnt(f)} file${fCnt(f)===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`).join("");
+    const fileTiles = myDocs.map(d=>`<div class="doc-tile">
         <a class="dt-link" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="${esc(d.name)} — click to view / print">
           <span class="dt-ic">${isImgDoc(d)?`<img src="${esc(docUrl(d))}" loading="lazy" alt="">`:docIcon(d)}</span>
           <span class="dt-name">${esc(d.name)}</span>
@@ -1066,7 +1079,10 @@ function vDocsPanel(e){
           <button class="sn-btn" data-dl-doc="${d.id}" title="Download">⬇</button>
           <button class="sn-btn" data-del-doc="${d.id}" title="Delete">×</button>
         </span>
-      </div>`).join("") + `</div>` : "");
+      </div>`).join("");
+    body = (folderCards?`<div class="doc-folders ${docView}">${folderCards}</div>`:"")
+         + (fileTiles?`<div class="doc-grid ${docView}">${fileTiles}</div>`:"");
+  }
   return `<div class="panel np-panel">
     <div class="ne-toolbar">
       <button type="button" id="docsBack">🗒 Notes</button>
@@ -1075,7 +1091,7 @@ function vDocsPanel(e){
       ${inFolder?`<button type="button" class="btn ghost tiny" id="folderUp" style="margin-left:8px;">⬅ All documents</button>`:""}
       <div class="spacer"></div>
       <span class="dv-switch">
-        <button type="button" data-dv="list" class="${docView==='list'?'on':''}" title="List view">☰</button>
+        <button type="button" data-dv="list" class="${docView==='list'?'on':''}" title="Details list">☰</button>
         <button type="button" data-dv="large" class="${docView==='large'?'on':''}" title="Large icons">▦</button>
         <button type="button" data-dv="small" class="${docView==='small'?'on':''}" title="Small icons">▫▫</button>
       </span>
@@ -1085,8 +1101,7 @@ function vDocsPanel(e){
     </div>
     <div class="docs-area" id="docsArea">
       <div id="newFolderRow" style="display:none;padding:4px 2px 10px;"><input id="newFolderName" placeholder="Folder name — press Enter…" style="padding:7px 11px;border:1px solid var(--line);border-radius:6px;font-size:13px;width:260px;background:var(--page);"></div>
-      ${folderCards?`<div class="doc-folders">${folderCards}</div>`:""}
-      ${rows || `<div class="empty" style="padding:50px 10px;">No documents${inFolder?" in this folder":""} yet — click “⬆ Upload files” or drag &amp; drop files anywhere here.<br>Click a file’s name to view it; print from the viewer, or ⬇ to download.</div>`}
+      ${body || `<div class="empty" style="padding:50px 10px;">No documents${inFolder?" in this folder":""} yet — click “⬆ Upload files” or drag &amp; drop files anywhere here.<br>Click a file’s name to view it; print from the viewer, or ⬇ to download.</div>`}
     </div>
   </div>`;
 }
@@ -1115,7 +1130,7 @@ function wireDocs(c){
   if(!area) return;
   const up=c.querySelector("#folderUp"); if(up) up.onclick=()=>{ currentDocFolder=""; render(); };
   c.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{ docView=b.dataset.dv; render(); });
-  c.querySelectorAll("[data-open-folder]").forEach(el=>el.onclick=ev=>{ if(ev.target.closest(".rm")) return; currentDocFolder=el.dataset.openFolder; render(); });
+  c.querySelectorAll("[data-open-folder]").forEach(el=>el.onclick=ev=>{ if(ev.target.closest("button")) return; currentDocFolder=el.dataset.openFolder; render(); });
   const nfBtn=c.querySelector("#docNewFolder"); if(nfBtn) nfBtn.onclick=()=>{ const row=c.querySelector("#newFolderRow"); row.style.display=""; row.querySelector("input").focus(); };
   const nfIn=c.querySelector("#newFolderName"); if(nfIn) nfIn.addEventListener("keydown", async ev=>{
     if(ev.key==="Enter" && nfIn.value.trim()){
