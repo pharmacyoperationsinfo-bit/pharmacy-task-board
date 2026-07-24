@@ -1154,6 +1154,22 @@ function startRename(type, id, current){
   inp.value=current||""; inp.placeholder="New name — press Enter…";
   inp.focus(); inp.select();
 }
+async function moveDoc(d, dest){
+  try{
+    await api(`/tb_docs?id=eq.${d.id}`, {method:"PATCH", body:JSON.stringify({folder:dest})});
+    await logActivity("document moved", null, d.name+" → "+(dest||"All documents"));
+    toast("Moved to "+(dest||"All documents"));
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t move"); }
+}
+function showMoveMenu(d, x, y){
+  const dests=[];
+  if ((d.folder||"")!=="") dests.push({label:"🏠 All documents (top level)", fn:()=>moveDoc(d,"")});
+  docFolders.filter(f=>f.employee_id===profileEmp && f.name!==(d.folder||"")).forEach(f=>
+    dests.push({label:"📁 "+esc(f.name), fn:()=>moveDoc(d, f.name)}));
+  if (!dests.length){ toast("No other folder to move to — create one first"); return; }
+  showCtx(x, y, dests);
+}
 function wireDocs(c){
   const btn=c.querySelector("#npDocsBtn"); if(btn) btn.onclick=()=>{ profileTab="docs"; render(); };
   const back=c.querySelector("#docsBack"); if(back) back.onclick=()=>{ profileTab="notes"; render(); };
@@ -1192,6 +1208,7 @@ function wireDocs(c){
           try{ const r=await fetch(docUrl(d)); const bl=await r.blob();
             const a=document.createElement("a"); a.href=URL.createObjectURL(bl); a.download=d.name||"document"; a.click(); URL.revokeObjectURL(a.href);
           }catch(e){ console.error(e); toast("Download failed"); }}},
+        {label:"📂 Move to…", fn:()=>setTimeout(()=>showMoveMenu(d, ev.clientX, ev.clientY), 0)},
         {label:"✏️ Rename", fn:()=>startRename("doc", d.id, d.name)},
         {label:"🗑 Delete file", danger:true, fn:async()=>{
           try{
