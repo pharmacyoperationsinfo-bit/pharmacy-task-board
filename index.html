@@ -327,6 +327,12 @@
   .doc-name:hover{text-decoration:underline; color:var(--accent);}
   .doc-meta{color:var(--muted); font-size:12px;}
   .doc-row .rt-actions{margin-left:auto;}
+  .sel-row{display:flex; align-items:center; gap:12px; padding:8px 2px 0; font-size:12.5px; color:var(--ink-2);}
+  .sel-all{display:inline-flex; align-items:center; gap:6px; cursor:pointer;}
+  .sel-all input, .doc-sel{width:15px; height:15px; accent-color:var(--ink); cursor:pointer;}
+  .sel-bar{display:inline-flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; padding:4px 10px;}
+  .dt-sel{position:absolute; top:5px; left:6px; z-index:3;}
+  .doc-tile.selected{outline:2px solid var(--ink); outline-offset:-1px;}
   .tt-tabs{display:flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; margin-bottom:8px;}
   .tt-tabs button{flex:1; padding:4px 6px; font-size:11.5px; color:var(--muted); border-radius:0;}
   .tt-tabs button.on{background:var(--surface); color:var(--ink); font-weight:700; box-shadow:inset 0 -2px 0 var(--ink);}
@@ -664,6 +670,7 @@ const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","
 /* ================= State ================= */
 let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], notepads = [], docs = [], docFolders = [];
 let profileTab = "notes", currentDocFolder = "", docView = "list", taskTab = "adhoc";
+let selDocs = new Set();
 let focusNotepad = false;
 let view = "dashboard";
 let profileEmp = null;
@@ -1053,9 +1060,13 @@ function vDocsPanel(e){
   const fCnt = f => docs.filter(d=>d.employee_id===e.id && (d.folder||"")===f.name).length;
   const docType = d => { const n=(d.name||"").toLowerCase(); const m=n.match(/\.([a-z0-9]+)$/);
     return m ? m[1].toUpperCase()+" file" : (d.type||"File"); };
+  selDocs = new Set([...selDocs].filter(id=>myDocs.some(d=>d.id===id)));
+  const allSel = myDocs.length>0 && myDocs.every(d=>selDocs.has(d.id));
+  const selBox = d => `<input type="checkbox" class="doc-sel" data-sel="${d.id}" ${selDocs.has(d.id)?"checked":""} title="Select">`;
   let body = "";
   if (docView==="list"){
     const folderRows = myFolders.map(f=>`<tr data-open-folder="${esc(f.name)}">
+        <td style="width:24px;"></td>
         <td style="width:30px;font-size:18px;">📁</td>
         <td><span class="doc-name" style="cursor:pointer;">${esc(f.name)}</span></td>
         <td style="color:var(--muted);">Folder</td>
@@ -1064,6 +1075,7 @@ function vDocsPanel(e){
         <td style="color:var(--muted);">—</td>
         <td><span class="rt-actions"><button class="icon-btn" data-del-folder="${f.id}" title="Delete folder">×</button></span></td></tr>`).join("");
     const fileRows = myDocs.map(d=>`<tr data-doc-ctx="${d.id}">
+        <td style="width:24px;">${selBox(d)}</td>
         <td style="width:30px;font-size:18px;">${docIcon(d)}</td>
         <td><a class="doc-name" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="Open to view or print">${esc(d.name)}</a></td>
         <td style="color:var(--muted);">${esc(docType(d))}</td>
@@ -1076,11 +1088,12 @@ function vDocsPanel(e){
           <button class="icon-btn" data-del-doc="${d.id}" title="Delete">×</button>
         </span></td></tr>`).join("");
     if (folderRows || fileRows)
-      body = `<table class="grid doc-table"><thead><tr><th></th><th>Name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>By</th><th></th></tr></thead><tbody>${folderRows}${fileRows}</tbody></table>`;
+      body = `<table class="grid doc-table"><thead><tr><th></th><th></th><th>Name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>By</th><th></th></tr></thead><tbody>${folderRows}${fileRows}</tbody></table>`;
   } else {
     const folderCards = myFolders.map(f=>
       `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(f.name)}</div><div class="df-cnt">${fCnt(f)} file${fCnt(f)===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`).join("");
-    const fileTiles = myDocs.map(d=>`<div class="doc-tile" data-doc-ctx="${d.id}">
+    const fileTiles = myDocs.map(d=>`<div class="doc-tile ${selDocs.has(d.id)?'selected':''}" data-doc-ctx="${d.id}">
+        <span class="dt-sel">${selBox(d)}</span>
         <a class="dt-link" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="${esc(d.name)} — click to view / print">
           <span class="dt-ic">${isImgDoc(d)?`<img src="${esc(docUrl(d))}" loading="lazy" alt="">`:docIcon(d)}</span>
           <span class="dt-name">${esc(d.name)}</span>
@@ -1110,6 +1123,13 @@ function vDocsPanel(e){
       ${!inFolder?`<button type="button" id="docNewFolder">＋ New folder</button>`:""}
       <button type="button" id="docUploadBtn">⬆ Upload files</button>
     </div>
+    ${myDocs.length?`<div class="sel-row">
+      <label class="sel-all"><input type="checkbox" id="selAll" ${allSel?"checked":""}> Select all (${myDocs.length})</label>
+      ${selDocs.size?`<span class="sel-bar"><b>${selDocs.size}</b> selected
+        <button type="button" class="btn ghost tiny" id="selMove">📂 Move to…</button>
+        <button type="button" class="btn danger tiny" id="selDelete">🗑 Delete</button>
+        <button type="button" class="btn ghost tiny" id="selClear">✕ Clear</button></span>`:""}
+    </div>`:""}
     <div class="docs-area" id="docsArea">
       <div id="newFolderRow" style="display:none;padding:4px 2px 10px;"><input id="newFolderName" placeholder="Folder name — press Enter…" style="padding:7px 11px;border:1px solid var(--line);border-radius:6px;font-size:13px;width:260px;background:var(--page);"></div>
       ${body || `<div class="empty" style="padding:50px 10px;">No documents${inFolder?" in this folder":""} yet — click “⬆ Upload files” or drag &amp; drop files anywhere here.<br>Click a file’s name to view it; print from the viewer, or ⬇ to download.</div>`}
@@ -1162,6 +1182,55 @@ async function moveDoc(d, dest){
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t move"); }
 }
+function showFolderMoveMenu(f, x, y){
+  const cnt = docs.filter(d=>d.employee_id===profileEmp && (d.folder||"")===f.name).length;
+  if (!cnt){ toast("“"+f.name+"” has no files to move"); return; }
+  const dests=[{label:"🏠 All documents (top level)", fn:()=>moveFolderContents(f,"")}];
+  docFolders.filter(g=>g.employee_id===profileEmp && g.name!==f.name).forEach(g=>
+    dests.push({label:"📁 "+esc(g.name), fn:()=>moveFolderContents(f, g.name)}));
+  showCtx(x, y, dests);
+}
+async function moveFolderContents(f, dest){
+  try{
+    await api(`/tb_docs?employee_id=eq.${profileEmp}&folder=eq.${encodeURIComponent(f.name)}`, {method:"PATCH", body:JSON.stringify({folder:dest})});
+    await logActivity("folder contents moved", null, f.name+" → "+(dest||"All documents"));
+    toast("All files moved to "+(dest||"All documents"));
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t move files"); }
+}
+async function bulkMove(dest){
+  const ids=[...selDocs];
+  try{
+    await Promise.all(ids.map(id=>api(`/tb_docs?id=eq.${id}`, {method:"PATCH", body:JSON.stringify({folder:dest})})));
+    await logActivity("documents moved", null, ids.length+" file(s) → "+(dest||"All documents"));
+    selDocs.clear();
+    toast(ids.length+" file(s) moved to "+(dest||"All documents"));
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t move files"); }
+}
+function showBulkMoveMenu(x, y){
+  const cur = currentDocFolder;
+  const dests=[];
+  if (cur!=="") dests.push({label:"🏠 All documents (top level)", fn:()=>bulkMove("")});
+  docFolders.filter(g=>g.employee_id===profileEmp && g.name!==cur).forEach(g=>
+    dests.push({label:"📁 "+esc(g.name), fn:()=>bulkMove(g.name)}));
+  if (!dests.length){ toast("No other folder to move to — create one first"); return; }
+  showCtx(x, y, dests);
+}
+async function bulkDelete(){
+  const ids=[...selDocs];
+  try{
+    for (const id of ids){
+      const d=docs.find(x=>x.id===id); if(!d) continue;
+      await fetch(SB_STORE+"/object/employee-docs/"+d.path, {method:"DELETE", headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}});
+      await api(`/tb_docs?id=eq.${id}`, {method:"DELETE"});
+    }
+    await logActivity("documents deleted", null, ids.length+" file(s)");
+    selDocs.clear();
+    toast(ids.length+" file(s) deleted");
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete"); }
+}
 function showMoveMenu(d, x, y){
   const dests=[];
   if ((d.folder||"")!=="") dests.push({label:"🏠 All documents (top level)", fn:()=>moveDoc(d,"")});
@@ -1177,6 +1246,24 @@ function wireDocs(c){
   if(!area) return;
   const up=c.querySelector("#folderUp"); if(up) up.onclick=()=>{ currentDocFolder=""; render(); };
   c.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{ docView=b.dataset.dv; render(); });
+  c.querySelectorAll(".doc-sel").forEach(cb=>{
+    cb.onclick = ev => ev.stopPropagation();
+    cb.onchange = () => { if(cb.checked) selDocs.add(cb.dataset.sel); else selDocs.delete(cb.dataset.sel); render(); };
+  });
+  const sa=c.querySelector("#selAll");
+  if (sa){
+    sa.onclick = ev => ev.stopPropagation();
+    sa.onchange = () => {
+      const my = docs.filter(d=>d.employee_id===profileEmp && (d.folder||"")===currentDocFolder).map(d=>d.id);
+      if (sa.checked) my.forEach(id=>selDocs.add(id)); else my.forEach(id=>selDocs.delete(id));
+      render();
+    };
+  }
+  const sm=c.querySelector("#selMove"); if(sm) sm.onclick=ev=>{ ev.stopPropagation(); showBulkMoveMenu(ev.clientX, ev.clientY); };
+  const sd=c.querySelector("#selDelete"); if(sd) sd.onclick=ev=>{ ev.stopPropagation();
+    if(sd.dataset.armed!=="1"){ sd.dataset.armed="1"; sd.textContent="🗑 Sure? Delete "+selDocs.size; return; }
+    bulkDelete(); };
+  const sc=c.querySelector("#selClear"); if(sc) sc.onclick=()=>{ selDocs.clear(); render(); };
   c.querySelectorAll("[data-open-folder]").forEach(el=>{
     el.onclick=ev=>{ if(ev.target.closest("button")) return; currentDocFolder=el.dataset.openFolder; render(); };
     el.oncontextmenu=ev=>{
@@ -1187,6 +1274,7 @@ function wireDocs(c){
       showCtx(ev.clientX, ev.clientY, [
         {label:"📂 Open", fn:()=>{ currentDocFolder=name; render(); }},
         {label:"✏️ Rename", fn:()=>startRename("folder", f.id, f.name)},
+        {label:"📂 Move all files to…", fn:()=>setTimeout(()=>showFolderMoveMenu(f, ev.clientX, ev.clientY), 0)},
         {label:"🗑 Delete folder", danger:true, fn:async()=>{
           const cnt=docs.filter(d=>d.employee_id===profileEmp && (d.folder||"")===name).length;
           if(cnt){ toast("Folder isn’t empty — move or delete its files first"); return; }
