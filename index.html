@@ -143,6 +143,13 @@
   .badge.quad{font-weight:700; letter-spacing:.03em;}
   .badge.wait{background:#eef3fb; border-color:#cfdff5; color:#2a5591;}
   .badge.nodl{background:var(--red-bg); color:var(--red-ink); border-color:#f0c4c4;}
+  .rec-btn{margin-left:auto; font:inherit; font-size:12px; font-weight:600; padding:4px 11px; border-radius:99px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink-2); cursor:pointer;}
+  .rec-btn:hover{border-color:var(--accent); color:var(--accent);}
+  .rec-btn.rec-on{background:var(--red-bg); border-color:var(--red); color:var(--red-ink); animation:workpulse 1.6s ease-in-out infinite;}
+  .ph-item.audio{flex:1 1 100%; display:flex; align-items:center; gap:8px; min-width:240px;}
+  .ph-item.audio audio{height:34px; flex:1; min-width:0;}
+  .ph-item.audio .a-name{font-size:11.5px; color:var(--muted); max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .c-thumbs{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;}
   .c-thumbs img{width:34px; height:34px; object-fit:cover; border-radius:5px; border:1px solid var(--line);}
 
@@ -466,7 +473,7 @@
     <div class="quickbar">
       <div class="qwrap">
         <input id="quickAdd" placeholder="Quick add — type a task and press Enter…  e.g.  @kumar ~3 +sparkbrook fridge temp log missed">
-        <div class="qhint">Shortcuts: <code>@name</code> assign · <code>~3</code> deadline in 3 days (or <code>~2026-08-01</code>) · <code>#red #amber #yellow</code> set urgency manually · <code>+site</code> branch · no deadline given = 7 days</div>
+        <div class="qhint">Shortcuts: <code>@name</code> assign · <code>~3</code> deadline in 3 days (or <code>~2026-08-01</code>) · <code>#priority</code> or <code>#queue</code> pick the list (queue if not given) · <code>+site</code> branch · deadline optional</div>
       </div>
     </div>
     <div class="topbar">
@@ -475,10 +482,9 @@
         <input id="q" type="search" placeholder="Search…"></div>
       <select id="fEmp"><option value="">All employees</option></select>
       <select id="fStatus">
-        <option value="">All urgency</option>
-        <option value="red">🔴 Red — Urgent</option>
-        <option value="amber">🟠 Amber — Medium urgency</option>
-        <option value="yellow">🟡 Yellow — Low urgency</option>
+        <option value="">All lists</option>
+        <option value="red">🔴 Red — Priority</option>
+        <option value="yellow">🟡 Yellow — Queue</option>
         <option value="green">🟢 Green — Completed</option>
       </select>
       <select id="fQuad">
@@ -516,11 +522,11 @@
       <input class="f-title" id="mTitle" placeholder="Task name…" maxlength="220">
       <div class="sp-cols">
       <div>
-      <div class="frow"><label>Deadline *</label><input type="date" id="mDue">
+      <div class="frow"><label>Add to *</label><div class="urg-picker" id="mUrgency"></div></div>
+      <div class="frow"><label>Deadline</label><input type="date" id="mDue">
         <input type="time" id="mDueTime" title="Time (optional)">
         <label style="flex:0 0 auto;">Repeats</label>
         <select id="mRec"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-      <div class="frow"><label>Urgency</label><div class="urg-picker" id="mUrgency"></div></div>
       <div class="frow"><label></label><span class="m-meta" id="mUrgHint"></span>
         <button class="btn ghost tiny" id="mWorking" type="button" style="margin-left:auto;"></button>
         <button class="btn ghost tiny" id="mComplete" type="button"></button></div>
@@ -553,7 +559,8 @@
         <div class="sub-add"><input id="mClNew" placeholder="Add a step and press Enter…"></div>
       </div>
       <div class="sub-block">
-        <div class="sb-head">Attachments</div>
+        <div class="sb-head">Attachments
+          <button class="rec-btn" id="recBtn" type="button" title="Record a voice note">🎤 Voice note</button></div>
         <div class="ph-grid" id="mPhotos"></div>
         <div class="attach-hint">📋 Copy any image or file and just <b>paste (Cmd/Ctrl+V)</b> — or drag &amp; drop it — anywhere in this window and it attaches instantly. Web links pasted in the notes attach themselves too.</div>
         <input type="file" id="phFile" multiple style="display:none;">
@@ -662,12 +669,11 @@ const ICONS = {
   green:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="m5 13 4.5 4.5L19 8"/></svg>'
 };
 const STATUSES = {
-  red:    {label:"Red",    meaning:"Urgent",         color:"var(--red)",    band:"due ≤ 2 working days / past deadline"},
-  amber:  {label:"Amber",  meaning:"Medium urgency", color:"var(--amber)",  band:"due ≤ 5 working days"},
-  yellow: {label:"Yellow", meaning:"Low urgency",    color:"var(--yellow)", band:"due later"},
-  green:  {label:"Green",  meaning:"Completed",      color:"var(--green)",  band:"done"}
+  red:    {label:"Red",    meaning:"Priority",  color:"var(--red)",    band:"do these first"},
+  yellow: {label:"Yellow", meaning:"Queue",     color:"var(--yellow)", band:"lined up — do when you can"},
+  green:  {label:"Green",  meaning:"Completed", color:"var(--green)",  band:"done"}
 };
-const ORDER = ["red","amber","yellow","green"];
+const ORDER = ["red","yellow","green"];
 const QUADS = {
   iu:  {code:"I+U", label:"Do now",   sub:"Important & urgent"},
   inu: {code:"I",   label:"Schedule", sub:"Important · not urgent"},
@@ -770,16 +776,11 @@ function workingDaysUntil(dateStr){
   while (d < due && guard++ < 4000){ d.setDate(d.getDate()+1); const day=d.getDay(); if (day!==0 && day!==6) n++; }
   return n;
 }
-/* The traffic light is computed from the deadline:
-   red = past deadline or ≤2 working days · amber = ≤5 working days · yellow = later · green = completed */
+/* Red = Priority (do these first) · Yellow = Queue (do when you can) · Green = Completed.
+   Chosen when the task is created — deadlines are optional and only add a date badge. */
 function urgency(t){
   if (t.status === "green") return "green";
-  if (t.urgency_override && STATUSES[t.urgency_override]) return t.urgency_override; // manual override
-  if (!t.due_date) return "red"; // no deadline set — flag it hard so it gets one
-  const wd = workingDaysUntil(t.due_date);
-  if (t.due_date < todayStr() || wd <= 2) return "red";
-  if (wd <= 5) return "amber";
-  return "yellow";
+  return t.status === "red" ? "red" : "yellow";
 }
 function fmtDate(d){ if(!d) return ""; const dt=new Date(d+"T00:00:00");
   return dt.toLocaleDateString([], {day:"numeric", month:"short"}) + (dt.getFullYear()!==new Date().getFullYear() ? " "+dt.getFullYear() : ""); }
@@ -900,13 +901,14 @@ function cardHTML(t, opts){
       ${!opts.hideOwner ? (e?`<span class="who"><span class="avatar" style="width:20px;height:20px;font-size:9px;background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name.split(" ")[0])}</span>`:'<span class="badge">Unassigned</span>') : ""}
       ${t.quadrant?`<span class="badge quad" title="${QUADS[t.quadrant].label} — ${QUADS[t.quadrant].sub}">${QUADS[t.quadrant].code}</span>`:""}
       ${t.site?`<span class="badge">📍 ${esc(t.site)}</span>`:""}
-      ${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${dueLabel(t)}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}
+      ${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${dueLabel(t)}</span>`:''}
       ${t.working && t.status!=='green'?`<span class="badge working" title="Being worked on">⚙ ${t.touched_by?esc(t.touched_by.split(" ")[0])+" working":"working on it"}</span>`:""}
       ${t.waiting_on?`<span class="badge wait" title="Waiting on ${esc(t.waiting_on)}">⏳ ${esc(t.waiting_on)}</span>`:""}
       ${cl.length?`<span class="badge">☑ ${done}/${cl.length}</span>`:""}
       ${t.recurrence && t.recurrence!=="none"?`<span class="badge" title="Repeats ${t.recurrence}">↻</span>`:""}
       ${(t.links||[]).length?`<span class="badge">🔗 ${(t.links||[]).length}</span>`:""}
-      ${imgs.filter(p=>!isImg(p)).length?`<span class="badge">📎 ${imgs.filter(p=>!isImg(p)).length}</span>`:""}
+      ${imgs.filter(isAudio).length?`<span class="badge" title="Voice notes">🎤 ${imgs.filter(isAudio).length}</span>`:""}
+      ${imgs.filter(p=>!isImg(p)&&!isAudio(p)).length?`<span class="badge">📎 ${imgs.filter(p=>!isImg(p)&&!isAudio(p)).length}</span>`:""}
     </div>
     ${imgs.filter(isImg).length?`<div class="c-thumbs">${imgs.filter(isImg).slice(0,5).map((p,ix)=>`<img src="${esc(photoUrl(p))}" data-lb="${t.id}:${ix}" alt="photo" loading="lazy">`).join("")}${imgs.filter(isImg).length>5?`<span class="badge">+${imgs.filter(isImg).length-5}</span>`:""}</div>`:""}
   </div>`;
@@ -1391,7 +1393,7 @@ function vBoard(){
       <button class="add-inline" data-add-task>+ Add task</button>
     </div>`;
   }).join("") + `</div>
-  <p style="font-size:12px;color:var(--muted);margin-top:10px;">Urgency follows each task’s deadline automatically — drag a card onto <b>Green</b> to complete it (✓ on the card works too), or drag it into another colour to set that urgency manually.</p>`;
+  <p style="font-size:12px;color:var(--muted);margin-top:10px;">Drag a card onto <b>Green</b> to complete it (✓ on the card works too), or drag it between <b>Priority</b> and <b>Queue</b> to move it.</p>`;
 }
 
 /* ---- Quadrant ---- */
@@ -1434,7 +1436,7 @@ function vList(){
         ${t.waiting_on?` <span class="badge wait">⏳ ${esc(t.waiting_on)}</span>`:""}</td>
       <td>${e?`<span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td>${t.site?esc(t.site):'<span style="color:var(--muted)">—</span>'}</td>
-      <td>${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${fmtDate(t.due_date)}${tTime(t)?' '+tTime(t):''}</span>`:'<span class="badge nodl">⚠ set deadline</span>'}</td>
+      <td>${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${fmtDate(t.due_date)}${tTime(t)?' '+tTime(t):''}</span>`:''}</td>
       <td>${cl.length?`☑ ${cl.filter(i=>i.done).length}/${cl.length}`:'<span style="color:var(--muted)">—</span>'}</td>
       <td style="color:var(--muted);font-size:12px;">${fmtWhen(t.updated_at)}${t.touched_by?` · ${esc(t.touched_by.split(" ")[0])}`:""}</td></tr>`;
   }).join("");
@@ -1964,7 +1966,7 @@ async function completeTask(id){
       const nd = nextDue(t.due_date, t.recurrence);
       const cl = (Array.isArray(t.checklist)?t.checklist:[]).map(i=>({...i, done:false}));
       await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({
-        status:"amber", due_date: nd, checklist: cl, completed_at: null, urgency_override: null, working: false }))});
+        status: t.status==="red" ? "red" : "yellow", due_date: nd, checklist: cl, completed_at: null, working: false }))});
       await logActivity("completed ✓ (repeats "+t.recurrence+")", t, "next deadline "+fmtDate(nd));
       toast(`“${t.title}” done ✓ — rescheduled for ${fmtDate(nd)}`);
     } else {
@@ -1979,7 +1981,7 @@ async function reopenTask(id){
   const t = tasks.find(x=>x.id===id);
   if (!t || t.status!=="green") return;
   try {
-    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({ status:"amber", completed_at:null }))});
+    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({ status:"yellow", completed_at:null }))});
     await logActivity("reopened", t);
     await loadAll(true);
   } catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
@@ -2002,11 +2004,11 @@ function toggleDone(id){
 }
 async function setUrgencyOverride(id, u){
   const t = tasks.find(x=>x.id===id);
-  if (!t) return;
+  if (!t || (u!=="red" && u!=="yellow")) return;
   try {
-    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({urgency_override: u}))});
-    await logActivity("urgency set manually → "+STATUSES[u].label, t, "Auto (by deadline) can be restored in the task window");
-    toast("Urgency set to "+STATUSES[u].label+" — “Auto” in the task window returns it to deadline-based");
+    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({status: u, completed_at: null}))});
+    await logActivity("moved to "+STATUSES[u].meaning, t);
+    toast("Moved to "+STATUSES[u].meaning);
     await loadAll(true);
   } catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }
 }
@@ -2022,7 +2024,7 @@ async function changeQuadrant(id, quad){
 
 /* ================= Quick add ================= */
 function parseQuick(text){
-  const out = {title:"", status:"amber", urgency_override:null, quadrant:null, employee_id:null, site:null, due_date:null};
+  const out = {title:"", status:"yellow", urgency_override:null, quadrant:null, employee_id:null, site:null, due_date:null};
   const words = [];
   text.split(/\s+/).forEach(w=>{
     const lw = w.toLowerCase();
@@ -2032,7 +2034,8 @@ function parseQuick(text){
              || employees.find(e=>e.full_name.toLowerCase().replace(/\s+/g,"").includes(key));
       if (m){ out.employee_id = m.id; return; }
     }
-    if (lw.startsWith("#") && ["red","amber","yellow"].includes(lw.slice(1))){ out.urgency_override = lw.slice(1); return; }
+    if (lw==="#red" || lw==="#priority"){ out.status = "red"; return; }
+    if (lw==="#yellow" || lw==="#queue"){ out.status = "yellow"; return; }
     if (lw.startsWith("~") && lw.length>1){
       const v = lw.slice(1);
       if (/^\d{4}-\d{2}-\d{2}$/.test(v)){ out.due_date = v; return; }
@@ -2047,7 +2050,6 @@ function parseQuick(text){
     words.push(w);
   });
   out.title = words.join(" ").trim();
-  if (!out.due_date) out.due_date = plusDays(DEFAULT_DEADLINE_DAYS);
   return out;
 }
 $("quickAdd").addEventListener("keydown", async e=>{
@@ -2060,9 +2062,9 @@ $("quickAdd").addEventListener("keydown", async e=>{
     const rows = await api("/tb_tasks", {method:"POST", body:JSON.stringify({ ...p, touched_by: meName() })});
     const nt = rows && rows[0];
     await logActivity("created (quick add)", nt||{id:null,title:p.title},
-      [p.employee_id?("→ "+empName(p.employee_id)):null, "deadline "+fmtDate(p.due_date), p.site, p.quadrant?QUADS[p.quadrant].label:null].filter(Boolean).join(" · "));
+      [p.employee_id?("→ "+empName(p.employee_id)):null, STATUSES[p.status].meaning, p.due_date?("deadline "+fmtDate(p.due_date)):null, p.site, p.quadrant?QUADS[p.quadrant].label:null].filter(Boolean).join(" · "));
     e.target.value="";
-    toast("Added: "+p.title+" — deadline "+fmtDate(p.due_date)+(p.employee_id?" → "+empName(p.employee_id):""));
+    toast("Added to "+STATUSES[p.status].meaning+": "+p.title+(p.due_date?" — deadline "+fmtDate(p.due_date):"")+(p.employee_id?" → "+empName(p.employee_id):""));
     await loadAll(true);
   }catch(err){ console.error(err); setOnline(false); toast("Couldn’t save — check connection"); }
 });
@@ -2108,9 +2110,10 @@ function openTask(id, preset){
   const t = id ? tasks.find(x=>x.id===id) : null;
   editing = t ? JSON.parse(JSON.stringify(t)) : {
     id: crypto.randomUUID(), _new:true, title:"", description:"", employee_id:(preset&&preset.employee_id)||"",
-    status:"amber", urgency_override:null, working:false, outcome:"", quadrant:null, site:"", due_date:plusDays(DEFAULT_DEADLINE_DAYS), recurrence:"none",
+    status:"", urgency_override:null, working:false, outcome:"", quadrant:null, site:"", due_date:"", recurrence:"none",
     waiting_on:"", checklist:[], links:[], images:[]
   };
+  if (editing.status==="amber") editing.status="yellow"; // legacy value
   if (!Array.isArray(editing.checklist)) editing.checklist=[];
   if (!Array.isArray(editing.links)) editing.links=[];
   if (!Array.isArray(editing.images)) editing.images=[];
@@ -2128,19 +2131,18 @@ function openTask(id, preset){
   $("taskPanel").classList.add("open");
   $("mTitle").focus();
 }
-function closeTask(){ $("taskPanel").classList.remove("open"); editing=null; }
+function closeTask(){ if (typeof stopRec==="function") stopRec(); $("taskPanel").classList.remove("open"); editing=null; }
 function renderUrgencyPreview(){
   if (!editing) return;
-  const due = $("mDue").value || null;
-  const auto = urgency({ status: editing.status, due_date: due, urgency_override: null });
+  const cur = editing.status==="green" ? (editing._bucket||"") : editing.status;
   $("mUrgency").innerHTML =
-    `<button type="button" class="${!editing.urgency_override?'sel':''}" data-u="">Auto · by deadline</button>` +
-    ["red","amber","yellow"].map(k=>
-      `<button type="button" class="${editing.urgency_override===k?'sel '+k:''}" data-u="${k}">${ICONS[k]}${STATUSES[k].label} · ${STATUSES[k].meaning}</button>`).join("");
-  $("mUrgency").querySelectorAll("button").forEach(b=>b.onclick=()=>{ editing.urgency_override=b.dataset.u||null; renderUrgencyPreview(); });
-  $("mUrgHint").textContent = editing.urgency_override
-    ? "Set manually — click Auto to follow the deadline again"
-    : (due ? "Auto: "+STATUSES[auto].label+" · "+STATUSES[auto].meaning+" ("+STATUSES[auto].band+")" : "Set a deadline — required");
+    `<button type="button" class="${cur==='red'?'sel red':''}" data-u="red">${ICONS.red}Priority · do first</button>` +
+    `<button type="button" class="${cur==='yellow'?'sel yellow':''}" data-u="yellow">${ICONS.yellow}Queue · when you can</button>`;
+  $("mUrgency").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    if (editing.status==="green") editing._bucket=b.dataset.u; else editing.status=b.dataset.u;
+    renderUrgencyPreview(); });
+  $("mUrgHint").textContent = editing.status==="green" ? "Completed ✓"
+    : (editing.status ? "" : "Choose Priority or Queue to add this task");
   $("mComplete").textContent = editing.status==="green" ? "↩ Reopen" : "✓ Mark completed";
   const wb=$("mWorking");
   wb.style.display = editing.status==="green" ? "none" : "";
@@ -2150,7 +2152,7 @@ function renderUrgencyPreview(){
   wb.style.color = editing.working ? "#1d5aa8" : "";
 }
 $("mDue").addEventListener("input", renderUrgencyPreview);
-$("mComplete").onclick=()=>{ if(!editing) return; editing.status = editing.status==="green" ? "amber" : "green"; if(editing.status==="green") editing.working=false; renderUrgencyPreview(); };
+$("mComplete").onclick=()=>{ if(!editing) return; if(editing.status==="green"){ editing.status = editing._bucket||"yellow"; } else { editing._bucket = editing.status||"yellow"; editing.status="green"; editing.working=false; } renderUrgencyPreview(); };
 $("mWorking").onclick=()=>{ if(!editing) return; editing.working = !editing.working; renderUrgencyPreview(); };
 function renderChecklist(){
   const cl = editing.checklist;
@@ -2167,9 +2169,12 @@ $("mClNew").addEventListener("keydown", e=>{
   }
 });
 function isImg(p){ return (p.type||"").startsWith("image") || /\.(png|jpe?g|gif|webp|heic|heif|svg|bmp|tiff?)$/i.test(p.name||p.path||""); }
+function isAudio(p){ return (p.type||"").startsWith("audio") || /\.(webm|weba|m4a|mp3|ogg|oga|wav|aac|flac)$/i.test(p.name||p.path||""); }
 function renderPhotos(){
   const items = editing.images.map((p,ix)=> isImg(p)
     ? `<div class="ph-item"><img src="${esc(photoUrl(p))}" data-view="${ix}" alt="attachment"><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`
+    : isAudio(p)
+    ? `<div class="ph-item audio">🎤<audio controls preload="metadata" src="${esc(photoUrl(p))}"></audio><span class="a-name" title="${esc(p.name||"voice note")}">${esc(p.name||"voice note")}</span><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`
     : `<div class="ph-item file"><a class="file-chip" href="${esc(photoUrl(p))}" target="_blank" rel="noopener" title="${esc(p.name||"file")}">📎 ${esc((p.name||"file"))}</a><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`).join("");
   const linkItems = editing.links.map((l,ix)=>
     `<div class="ph-item file"><a class="file-chip" href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.url)}">🔗 ${esc(l.title||l.url)}</a><button class="rm" data-rml="${ix}" title="Remove">×</button></div>`).join("");
@@ -2202,6 +2207,33 @@ async function addFiles(files){
   toast("Attached ✓");
 }
 $("phFile").addEventListener("change", e=>{ const fs=[...e.target.files]; e.target.value=""; addFiles(fs); });
+/* ---- Voice notes (Apple Notes style) ---- */
+let recRec=null, recStream=null, recChunks=[], recTick=null, recT0=0;
+function recLabel(){ const s=Math.floor((Date.now()-recT0)/1000); return "◉ "+Math.floor(s/60)+":"+String(s%60).padStart(2,"0")+" — tap to stop"; }
+async function startRec(){
+  try{ recStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ console.error(e); toast("Microphone blocked — allow mic access in the browser and try again"); return; }
+  const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : (MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "");
+  recChunks=[]; recRec = new MediaRecorder(recStream, mime? {mimeType:mime} : undefined);
+  recRec.ondataavailable = e=>{ if(e.data && e.data.size) recChunks.push(e.data); };
+  recRec.onstop = ()=>{
+    (recStream ? recStream.getTracks() : []).forEach(tr=>tr.stop()); recStream=null;
+    clearInterval(recTick); const b=$("recBtn"); if(b){ b.classList.remove("rec-on"); b.textContent="🎤 Voice note"; }
+    const type = recRec.mimeType || "audio/webm";
+    const ext = type.includes("mp4") ? "m4a" : "webm";
+    const blob = new Blob(recChunks, {type});
+    recRec=null; recChunks=[];
+    if (!blob.size || !editing) return;
+    const d=new Date();
+    const name = "Voice note "+d.toLocaleDateString([],{day:"numeric",month:"short"})+" "+d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}).replace(":",".")+"."+ext;
+    addFiles([new File([blob], name, {type})]);
+  };
+  recRec.start(); recT0=Date.now();
+  const b=$("recBtn"); b.classList.add("rec-on"); b.textContent=recLabel();
+  recTick=setInterval(()=>{ const bb=$("recBtn"); if(bb && recRec) bb.textContent=recLabel(); }, 1000);
+}
+function stopRec(){ if (recRec && recRec.state!=="inactive") recRec.stop(); }
+$("recBtn").onclick=()=>{ if(!editing) return; (recRec && recRec.state==="recording") ? stopRec() : startRec(); };
 /* Paste an image/file anywhere in the open task window → attaches */
 document.addEventListener("paste", e=>{
   if(!editing || !$("taskPanel").classList.contains("open")) return;
@@ -2241,12 +2273,12 @@ $("mSave").onclick=async ()=>{
   harvestLinks();
   const title=$("mTitle").value.trim();
   if(!title){ toast("Give the task a name first"); $("mTitle").focus(); return; }
-  if(!$("mDue").value){ toast("Every task needs a deadline — set the date"); $("mDue").focus(); return; }
+  if(editing.status!=="green" && editing.status!=="red" && editing.status!=="yellow"){ toast("Choose Priority or Queue first"); return; }
   const payload={ title, description:sanitizeHtml($("mDesc").innerHTML), employee_id:$("mEmp").value||null,
-    status:editing.status==="green" ? "green" : "amber", working: editing.status==="green" ? false : !!editing.working,
-    outcome:$("mOutcome").value, urgency_override:editing.urgency_override||null,
+    status:editing.status, working: editing.status==="green" ? false : !!editing.working,
+    outcome:$("mOutcome").value, urgency_override:null,
     quadrant:editing.quadrant||null, site:$("mSite").value||null,
-    due_date:$("mDue").value, due_time:$("mDueTime").value||null, recurrence:$("mRec").value, waiting_on:editing.waiting_on||"",
+    due_date:$("mDue").value||null, due_time:$("mDueTime").value||null, recurrence:$("mRec").value, waiting_on:editing.waiting_on||"",
     checklist:editing.checklist, links:editing.links, images:editing.images,
     updated_at:new Date().toISOString(), touched_by: meName() };
   try{
@@ -2255,7 +2287,7 @@ $("mSave").onclick=async ()=>{
       const nowGreen = payload.status==="green" && before.status!=="green";
       if (nowGreen && payload.recurrence!=="none"){
         // completing a repeating task from the editor: reschedule it
-        payload.status="amber"; payload.completed_at=null; payload.urgency_override=null;
+        payload.status = before.status==="red" ? "red" : "yellow"; payload.completed_at=null;
         payload.due_date = nextDue(payload.due_date, payload.recurrence);
         payload.checklist = payload.checklist.map(i=>({...i, done:false}));
         await api(`/tb_tasks?id=eq.${editing.id}`, {method:"PATCH", body:JSON.stringify(payload)});
@@ -2269,7 +2301,8 @@ $("mSave").onclick=async ()=>{
         if (nowGreen) changes.push("completed ✓");
         if (before.status==="green" && payload.status!=="green") changes.push("reopened");
         if ((before.employee_id||null)!==payload.employee_id) changes.push(`assigned to ${payload.employee_id?empName(payload.employee_id):"nobody"}`);
-        if ((before.due_date||null)!==(payload.due_date||null)) changes.push(`deadline ${fmtDate(payload.due_date)}`);
+        if ((before.due_date||null)!==(payload.due_date||null)) changes.push(payload.due_date?`deadline ${fmtDate(payload.due_date)}`:"deadline removed");
+        if ((before.status||null)!==payload.status && payload.status!=="green" && before.status!=="green") changes.push("moved to "+STATUSES[payload.status].meaning);
         if ((before.quadrant||null)!==(payload.quadrant||null)) changes.push("quadrant → "+(payload.quadrant?QUADS[payload.quadrant].label:"untriaged"));
         await logActivity("updated", {id:editing.id,title}, changes.join(", "));
         toast("Task saved");
@@ -2280,7 +2313,7 @@ $("mSave").onclick=async ()=>{
       const rows = await api("/tb_tasks", {method:"POST", body:JSON.stringify(payload)});
       const nt = rows && rows[0];
       await logActivity("created", nt||{id:editing.id,title},
-        (payload.employee_id? "assigned to "+empName(payload.employee_id) : "unassigned")+" · deadline "+fmtDate(payload.due_date));
+        (payload.employee_id? "assigned to "+empName(payload.employee_id) : "unassigned")+" · "+STATUSES[payload.status==="green"?"green":payload.status].meaning+(payload.due_date?" · deadline "+fmtDate(payload.due_date):""));
       toast("Task created");
     }
     closeTask();
