@@ -1621,7 +1621,7 @@ function applyCmd(cmd){
     case "clear": document.execCommand("removeFormat"); break;
     case "ul": document.execCommand("insertUnorderedList"); break;
     case "ol": document.execCommand("insertOrderedList"); break;
-    case "chk": document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;</span></div>'); break;
+    case "chk": chkApply(); break;
     case "hl": {
       let cur=""; try{ cur = String(document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || ""); }catch(_){ }
       const on = Object.values(HL_RGB).includes(cur) || /#fff176/i.test(cur);
@@ -1692,6 +1692,89 @@ function saveNotepad(immediate){
   if (immediate) doIt();
   else if (Date.now() - npLastSave > 1200) npTimer = setTimeout(doIt, 150);
   else npTimer = setTimeout(doIt, 700);
+}
+function insertEmptyChk(){ document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;</span></div>'); }
+/* ☑ Check: turn the current line — or every selected line — into checklist items.
+   If they're already checklist items, turn them back into plain lines. */
+function chkApply(){
+  const sel = getSelection();
+  if (!sel.rangeCount) { insertEmptyChk(); return; }
+  const range = sel.getRangeAt(0);
+  const anc = range.commonAncestorContainer;
+  const rootEl = (anc.nodeType===1 ? anc : anc.parentElement).closest(".rich-target");
+  if (!rootEl) { insertEmptyChk(); return; }
+  // resolve endpoint nodes before any DOM surgery
+  const kids0 = [...rootEl.childNodes];
+  let sN = range.startContainer, eN = range.endContainer;
+  if (sN === rootEl) sN = kids0[Math.min(range.startOffset, Math.max(0,kids0.length-1))] || rootEl;
+  if (eN === rootEl) eN = kids0[Math.max(0, Math.min(range.endOffset-1, kids0.length-1))] || sN;
+  // wrap loose text / inline runs into <div> lines (safe — never touches existing blocks)
+  const isBlock = n => n.nodeType===1 && /^(DIV|P|H1|H2|H3|H4|UL|OL|BLOCKQUOTE|PRE|TABLE)$/.test(n.tagName);
+  (function normalize(){
+    let run = [];
+    const flush = () => { if (!run.length) return;
+      const div = document.createElement("div");
+      rootEl.insertBefore(div, run[0]);
+      run.forEach(n => div.appendChild(n));
+      run = []; };
+    [...rootEl.childNodes].forEach(n => {
+      if (n.nodeType===1 && n.tagName==="BR"){ if (run.length){ flush(); n.remove(); } }
+      else if (isBlock(n)) flush();
+      else if (n.nodeType===3 && !n.nodeValue.trim() && !run.length) { /* stray whitespace */ }
+      else run.push(n);
+    });
+    flush();
+  })();
+  const lineOf = node => {
+    if (!node || node === rootEl) return null;
+    while (node && node.parentNode !== rootEl) node = node.parentNode;
+    return node;
+  };
+  const kids = [...rootEl.childNodes];
+  let start = lineOf(sN), end = lineOf(eN);
+  let i0 = kids.indexOf(start), i1 = kids.indexOf(end);
+  if (i0 < 0 && i1 < 0) { insertEmptyChk(); return; }
+  if (i0 < 0) i0 = i1; if (i1 < 0) i1 = i0;
+  if (i1 < i0) { const t=i0; i0=i1; i1=t; }
+  const targets = [];
+  kids.slice(i0, i1+1).forEach(L => {
+    if (L.nodeType===1 && /^(UL|OL)$/.test(L.tagName)) targets.push(...[...L.children]);
+    else targets.push(L);
+  });
+  const real = targets.filter(L => (L.textContent||"").trim().length ||
+    (L.nodeType===1 && L.querySelector && L.querySelector("img,.nfile")));
+  if (!real.length) { insertEmptyChk(); return; }
+  const isChk = L => L.nodeType===1 && L.classList && L.classList.contains("nchk");
+  const allChk = real.every(isChk);
+  let last = null;
+  real.forEach(L => {
+    if (allChk) {
+      const span = L.querySelector("span");
+      const div = document.createElement("div");
+      while (span && span.firstChild) div.appendChild(span.firstChild);
+      if (div.firstChild && div.firstChild.nodeType===3)
+        div.firstChild.nodeValue = div.firstChild.nodeValue.replace(/^\u00a0+/, "");
+      if (!div.childNodes.length) div.innerHTML = "<br>";
+      L.replaceWith(div); last = div;
+    } else if (!isChk(L)) {
+      const div = document.createElement("div"); div.className = "nchk";
+      const cb = document.createElement("input"); cb.type = "checkbox";
+      const span = document.createElement("span");
+      span.appendChild(document.createTextNode("\u00a0"));
+      if (L.nodeType===3) span.appendChild(document.createTextNode(L.nodeValue));
+      else while (L.firstChild) span.appendChild(L.firstChild);
+      div.appendChild(cb); div.appendChild(span);
+      const list = L.parentNode && L.parentNode !== rootEl && /^(UL|OL)$/.test((L.parentNode.tagName||"")) ? L.parentNode : null;
+      if (list) { list.parentNode.insertBefore(div, list); L.remove(); if (!list.children.length) list.remove(); }
+      else L.replaceWith(div);
+      last = div;
+    } else last = L;
+  });
+  if (last) {
+    const span = last.querySelector ? (last.querySelector("span") || last) : last;
+    const r = document.createRange(); r.selectNodeContents(span); r.collapse(false);
+    const ss = getSelection(); ss.removeAllRanges(); ss.addRange(r);
+  }
 }
 document.addEventListener("keydown", e=>{
   const t = document.activeElement;
@@ -1956,7 +2039,7 @@ function wireNotes(c){
     const body=c.querySelector(`[data-note-body="${id}"]`);
     if(!body) return;
     body.focus();
-    document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;</span></div>');
+    chkApply();
     saveNote(id);
   });
   c.querySelectorAll("[data-note-open]").forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openNoteEditor(b.dataset.noteOpen); });
