@@ -438,6 +438,55 @@
     padding:9px 16px; border-radius:8px; font-size:13px; z-index:99; opacity:0; transition:opacity .2s; pointer-events:none;}
   .toast.show{opacity:1;}
 
+  /* ---------- Mobile ---------- */
+  .mob-menu{display:none;}
+  .side-scrim{display:none;}
+  @media (max-width:820px){
+    .app{height:100dvh;}
+    /* sidebar becomes a slide-in drawer */
+    .sidebar{position:fixed; left:0; top:0; bottom:0; z-index:130; width:262px;
+      transform:translateX(-103%); transition:transform .22s ease; box-shadow:4px 0 22px rgba(11,11,11,.18);}
+    body.side-open .sidebar{transform:none;}
+    .side-scrim{position:fixed; inset:0; background:rgba(11,11,11,.35); z-index:120;}
+    body.side-open .side-scrim{display:block;}
+    /* floating buttons */
+    .mob-menu{display:inline-flex; align-items:center; justify-content:center; position:fixed;
+      left:14px; bottom:16px; z-index:110; width:52px; height:52px; border-radius:50%;
+      background:var(--ink); color:#fff; border:none; font-size:21px; box-shadow:0 4px 14px rgba(11,11,11,.3); cursor:pointer;}
+    .topbar #btnNew{position:fixed; right:14px; bottom:16px; z-index:110; border-radius:999px;
+      padding:14px 20px; font-size:15px; box-shadow:0 4px 14px rgba(11,11,11,.3);}
+    body.profile-mode .topbar{display:block; padding:0; border:none; height:0; overflow:visible;}
+    body.profile-mode .topbar > *:not(#btnNew){display:none;}
+    /* compact bars; iOS won't zoom if inputs are 16px */
+    input, select, textarea, .np-body, .f-desc, .sn-body{font-size:16px !important;}
+    .quickbar{padding:8px 10px 0;}
+    .qhint{display:none;}
+    .topbar{padding:8px 10px 10px; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch;}
+    .topbar h1{display:none;}
+    .topbar > *{flex:0 0 auto;}
+    .topbar .search{min-width:150px;}
+    .content{padding:10px 10px 90px;}
+    /* views stack */
+    .board{display:flex; flex-direction:column; align-items:stretch; min-width:0; gap:12px;}
+    .quad-wrap{grid-template-columns:1fr; min-width:0;}
+    .tiles{grid-template-columns:1fr 1fr;}
+    .profile-head{flex-wrap:wrap; padding-right:10px;}
+    .np-canvas{height:auto; min-height:200px;}
+    .np-body{min-height:200px;}
+    .np-tasks{max-height:none;}
+    /* bigger touch targets on cards */
+    .card .c-done{width:30px; height:30px; font-size:15px;}
+    .card .c-work{width:30px; height:30px; right:42px; font-size:15px;}
+    .card{padding-right:80px;}
+    /* documents: hide low-value columns so the table fits */
+    .doc-table th:nth-child(4), .doc-table td:nth-child(4),
+    .doc-table th:nth-child(7), .doc-table td:nth-child(7){display:none;}
+    .doc-folder{width:calc(50% - 6px);}
+    /* editor fills the phone screen */
+    .side-panel{width:100vw; height:100dvh; max-height:100dvh; border-radius:0;}
+    .ne-modal{width:100vw; height:100dvh; border-radius:0;}
+  }
+
   @media print{
     .sidebar,.topbar,.quickbar,.banner,.toast,.panel-wrap,.overlay,.lightbox{display:none !important;}
     body,.app{height:auto; overflow:visible;}
@@ -450,6 +499,8 @@
 </style>
 </head>
 <body>
+<div class="side-scrim" id="sideScrim"></div>
+<button class="mob-menu" id="mobMenu" title="Menu">☰</button>
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
@@ -1847,9 +1898,12 @@ function wireNotes(c){
     np.addEventListener("blur", ()=>saveNotepad(true));
     if (focusNotepad){
       focusNotepad = false;
+      if (isPhone()) { /* no auto keyboard on phones */ }
+      else {
       np.focus();
       const r=document.createRange(); r.selectNodeContents(np); r.collapse(false);
       const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
     }
   }
   const canvas = c.querySelector("#notesCanvas");
@@ -2506,6 +2560,14 @@ function startRealtime(){
     ch.subscribe(status => { if (status === "SUBSCRIBED") setOnline(true); });
   } catch(e){ console.error("realtime", e); }
 }
+
+/* ---- Mobile drawer ---- */
+function isPhone(){ return matchMedia("(max-width:820px)").matches; }
+$("mobMenu").onclick = ()=>document.body.classList.toggle("side-open");
+$("sideScrim").onclick = ()=>document.body.classList.remove("side-open");
+document.querySelector(".sidebar").addEventListener("click", e=>{
+  if (e.target.closest(".nav button, .team-row")) document.body.classList.remove("side-open");
+});
 
 /* ================= Go ================= */
 loadAll();
