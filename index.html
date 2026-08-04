@@ -680,7 +680,7 @@
       <span class="ne-sep"></span>
       <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">• List</button>
       <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1. List</button>
-      <button type="button" data-ne="chk" title="Checklist line — Cmd/Ctrl+Shift+L">☑ Check</button>
+      <button type="button" data-ne="chk" title="Checklist line — Cmd/Ctrl+Shift+B (or L)">☑ Check</button>
       <span class="ne-sep"></span>
       <button type="button" id="neAttach" title="Attach photo / file / zip">📎 Attach</button>
       <div class="spacer"></div>
@@ -1075,7 +1075,7 @@ function vProfile(){
         <span class="ne-sep"></span>
         <button type="button" data-ne="ul" title="Bullet list — Cmd/Ctrl+Shift+8">• List</button>
         <button type="button" data-ne="ol" title="Numbered list — Cmd/Ctrl+Shift+7">1. List</button>
-        <button type="button" data-ne="chk" title="Checklist — Cmd/Ctrl+Shift+L">☑ Check</button>
+        <button type="button" data-ne="chk" title="Checklist — Cmd/Ctrl+Shift+B (or L)">☑ Check</button>
         <span class="ne-sep"></span>
         <button type="button" id="npAttach" title="Attach photo / file / zip">📎 Attach</button>
         <button type="button" data-add-note="${e.id}" title="Drop a sticky note onto this page">📌 Sticky note</button>
@@ -1621,7 +1621,7 @@ function applyCmd(cmd){
     case "clear": document.execCommand("removeFormat"); break;
     case "ul": document.execCommand("insertUnorderedList"); break;
     case "ol": document.execCommand("insertOrderedList"); break;
-    case "chk": document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;to do</span></div>'); break;
+    case "chk": document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;</span></div>'); break;
     case "hl": {
       let cur=""; try{ cur = String(document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || ""); }catch(_){ }
       const on = Object.values(HL_RGB).includes(cur) || /#fff176/i.test(cur);
@@ -1703,7 +1703,7 @@ document.addEventListener("keydown", e=>{
     if (k==="b") cmd="bold"; else if (k==="i") cmd="italic"; else if (k==="u") cmd="underline";
   } else if (e.shiftKey && !e.altKey){
     if (k==="h") cmd="h"; else if (k==="j") cmd="sub"; else if (k==="0"||e.code==="Digit0") cmd="body";
-    else if (k==="e") cmd="hl"; else if (k==="l") cmd="chk";
+    else if (k==="e") cmd="hl"; else if (k==="l" || k==="b") cmd="chk";
     else if (e.code==="Digit7") cmd="ol"; else if (e.code==="Digit8") cmd="ul";
   }
   if (cmd){ e.preventDefault(); applyCmd(cmd); richAutosave(t); }
@@ -1956,7 +1956,7 @@ function wireNotes(c){
     const body=c.querySelector(`[data-note-body="${id}"]`);
     if(!body) return;
     body.focus();
-    document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;to do</span></div>');
+    document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;</span></div>');
     saveNote(id);
   });
   c.querySelectorAll("[data-note-open]").forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openNoteEditor(b.dataset.noteOpen); });
