@@ -1693,7 +1693,30 @@ function saveNotepad(immediate){
   else if (Date.now() - npLastSave > 1200) npTimer = setTimeout(doIt, 150);
   else npTimer = setTimeout(doIt, 700);
 }
-function insertEmptyChk(){ document.execCommand("insertHTML", false, '<div class="nchk"><input type="checkbox"><span>&nbsp;</span></div>'); }
+function insertEmptyChk(){
+  const sel = getSelection(); if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0); if (!range.collapsed) range.deleteContents();
+  const anc = range.commonAncestorContainer;
+  const rootEl = (anc.nodeType===1 ? anc : anc.parentElement).closest(".rich-target");
+  const div = document.createElement("div"); div.className = "nchk";
+  const cb = document.createElement("input"); cb.type = "checkbox";
+  const span = document.createElement("span"); span.appendChild(document.createTextNode("\u00a0"));
+  div.appendChild(cb); div.appendChild(span);
+  if (!rootEl) { range.insertNode(div); }
+  else {
+    let line = range.startContainer;
+    if (line === rootEl) {
+      const kids = [...rootEl.childNodes];
+      rootEl.insertBefore(div, kids[Math.min(range.startOffset, kids.length)] || null);
+    } else {
+      while (line.parentNode !== rootEl) line = line.parentNode;
+      const emptyLine = line.nodeType===1 && !(line.textContent||"").trim() && !line.querySelector("img,input");
+      if (emptyLine) line.replaceWith(div); else line.after(div);
+    }
+  }
+  const r = document.createRange(); r.setStart(span.firstChild, 1); r.collapse(true);
+  sel.removeAllRanges(); sel.addRange(r);
+}
 /* ☑ Check: turn the current line — or every selected line — into checklist items.
    If they're already checklist items, turn them back into plain lines. */
 function chkApply(){
@@ -1776,6 +1799,56 @@ function chkApply(){
     const ss = getSelection(); ss.removeAllRanges(); ss.addRange(r);
   }
 }
+/* Enter inside a checklist behaves like Apple Notes:
+   Enter on an item -> next line is a new tick-box (splitting text at the cursor);
+   Enter on an EMPTY item -> leaves the checklist and returns to normal text. */
+document.addEventListener("keydown", e=>{
+  if (e.key !== "Enter" || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = document.activeElement;
+  if (!t || !t.classList || !t.classList.contains("rich-target")) return;
+  const sel = getSelection(); if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const sc = range.startContainer;
+  const el = sc.nodeType===1 ? sc : sc.parentElement;
+  const chk = el && el.closest ? el.closest(".nchk") : null;
+  if (!chk || !t.contains(chk)) return;
+  e.preventDefault();
+  if (!range.collapsed) range.deleteContents();
+  const span = chk.querySelector("span");
+  const text = (chk.textContent||"").replace(/\u00a0/g," ").trim();
+  const caret = (node, toStart) => {
+    const r = document.createRange(); r.selectNodeContents(node); r.collapse(!!toStart);
+    const ss = getSelection(); ss.removeAllRanges(); ss.addRange(r);
+  };
+  if (!text) {
+    const div = document.createElement("div"); div.innerHTML = "<br>";
+    chk.replaceWith(div); caret(div, true);
+  } else {
+    const nDiv = document.createElement("div"); nDiv.className = "nchk";
+    const cb = document.createElement("input"); cb.type = "checkbox";
+    const nSpan = document.createElement("span");
+    nSpan.appendChild(document.createTextNode("\u00a0"));
+    const container = (span && span.contains(range.startContainer)) ? span
+                    : (chk.contains(range.startContainer) ? chk : null);
+    if (container && container.lastChild) {
+      try {
+        const r2 = document.createRange();
+        r2.setStart(range.startContainer, range.startOffset);
+        r2.setEndAfter(container.lastChild);
+        const frag = r2.extractContents();
+        [...frag.querySelectorAll("input")].forEach(i=>i.remove());
+        nSpan.appendChild(frag);
+      } catch(_){}
+    }
+    nDiv.appendChild(cb); nDiv.appendChild(nSpan);
+    chk.after(nDiv);
+    if (nSpan.childNodes.length > 1) { // split text moved over — caret before it
+      const r = document.createRange(); r.setStart(nSpan.firstChild, nSpan.firstChild.nodeValue.length); r.collapse(true);
+      const ss = getSelection(); ss.removeAllRanges(); ss.addRange(r);
+    } else caret(nSpan, false);
+  }
+  t.dispatchEvent(new Event("input", {bubbles:true}));
+});
 document.addEventListener("keydown", e=>{
   const t = document.activeElement;
   if (!t || !t.classList || !t.classList.contains("rich-target")) return;
