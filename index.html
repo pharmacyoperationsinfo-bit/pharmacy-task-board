@@ -269,6 +269,11 @@
   .cl-item .rm,.lk-item .rm,.ph-item .rm{margin-left:auto; color:var(--muted); font-size:15px; padding:0 4px; visibility:hidden;}
   .cl-item:hover .rm,.lk-item:hover .rm,.ph-item:hover .rm{visibility:visible;}
   .cl-item .rm:hover,.lk-item .rm:hover,.ph-item .rm:hover{color:var(--red);}
+  .cl-item .cl-edit{margin-left:auto; color:var(--muted); font-size:12px; padding:0 4px; visibility:hidden; cursor:pointer; background:none; border:none;}
+  .cl-item:hover .cl-edit{visibility:visible;}
+  .cl-item .cl-edit:hover{color:var(--accent);}
+  .cl-item .cl-edit + .rm{margin-left:0;}
+  .cl-item input.cl-editbox{flex:1; font:inherit; font-size:13px; padding:3px 8px; border:1px solid var(--accent); border-radius:6px; outline:none;}
   .sub-add{display:flex; gap:6px; margin-top:6px;}
   .sub-add input{flex:1; padding:5px 9px; border:1px solid var(--line); border-radius:6px; font-size:12.5px; background:var(--surface);}
   .lk-item{display:flex; align-items:center; gap:8px; padding:3px 0; font-size:13px;}
@@ -2394,9 +2399,25 @@ function renderChecklist(){
   const cl = editing.checklist;
   $("mClProg").textContent = cl.length? `${cl.filter(i=>i.done).length}/${cl.length} done` : "";
   $("mChecklist").innerHTML = cl.map((i,ix)=>
-    `<div class="cl-item ${i.done?'done':''}"><input type="checkbox" ${i.done?'checked':''} data-ix="${ix}"><span>${esc(i.text)}</span><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`).join("");
-  $("mChecklist").querySelectorAll("input").forEach(ch=>ch.onchange=()=>{ cl[+ch.dataset.ix].done=ch.checked; renderChecklist(); });
+    `<div class="cl-item ${i.done?'done':''}"><input type="checkbox" ${i.done?'checked':''} data-ix="${ix}"><span>${esc(i.text)}</span><button class="cl-edit" data-ed="${ix}" title="Edit this step">✎</button><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`).join("");
+  $("mChecklist").querySelectorAll("input[type=checkbox]").forEach(ch=>ch.onchange=()=>{ cl[+ch.dataset.ix].done=ch.checked; renderChecklist(); });
   $("mChecklist").querySelectorAll(".rm").forEach(b=>b.onclick=()=>{ cl.splice(+b.dataset.rm,1); renderChecklist(); });
+  $("mChecklist").querySelectorAll(".cl-edit").forEach(b=>b.onclick=()=>{
+    const ix=+b.dataset.ed, row=b.closest(".cl-item"), span=row.querySelector("span");
+    if (row.querySelector(".cl-editbox")) return;
+    const inp=document.createElement("input"); inp.type="text"; inp.className="cl-editbox"; inp.value=cl[ix].text;
+    span.replaceWith(inp); b.style.display="none"; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length);
+    let done=false;
+    const commit=ok=>{ if(done) return; done=true;
+      if (ok && inp.value.trim()) cl[ix].text=inp.value.trim();
+      renderChecklist(); };
+    inp.addEventListener("keydown", ev=>{
+      if (ev.key==="Enter"){ ev.preventDefault(); commit(true); }
+      else if (ev.key==="Escape"){ ev.preventDefault(); commit(false); }
+      ev.stopPropagation();
+    });
+    inp.addEventListener("blur", ()=>commit(true));
+  });
 }
 $("mClNew").addEventListener("keydown", e=>{
   if (e.key==="Enter" && e.target.value.trim() && editing){
