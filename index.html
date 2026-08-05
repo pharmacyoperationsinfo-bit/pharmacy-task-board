@@ -289,6 +289,19 @@
   .m-meta{font-size:11.5px; color:var(--muted);}
 
   /* ---------- Modals & lightbox ---------- */
+  .dn-list{display:flex; flex-wrap:wrap; gap:10px; max-height:60vh; overflow-y:auto; margin:8px 0 4px;}
+  .dn-note{width:200px; border-radius:4px; padding:8px 10px 8px; font-size:12.5px; box-shadow:0 1px 4px rgba(11,11,11,.12);
+    display:flex; flex-direction:column; gap:6px;}
+  .dn-note.c-yellow{background:#fff3a3;} .dn-note.c-pink{background:#ffd6e0;} .dn-note.c-blue{background:#cfe7ff;}
+  .dn-note.c-green{background:#d6f2cf;} .dn-note.c-orange{background:#ffe1b3;}
+  .dn-body{flex:1; max-height:130px; overflow-y:auto; word-break:break-word;}
+  .dn-body img{max-width:100%; border-radius:3px;}
+  .dn-meta{font-size:10.5px; color:rgba(11,11,11,.55);}
+  .dn-actions{display:flex; gap:6px;}
+  .dn-actions button{font-size:11px; padding:3px 9px; border-radius:6px; border:1px solid rgba(11,11,11,.2);
+    background:rgba(255,255,255,.6); cursor:pointer;}
+  .dn-actions button:hover{background:#fff;}
+  .dn-actions button.danger{color:#a02020;}
   .overlay{position:fixed; inset:0; background:rgba(11,11,11,0.35); display:none; align-items:flex-start;
     justify-content:center; padding:8vh 16px; z-index:60; overflow:auto;}
   .overlay.open{display:flex;}
@@ -643,6 +656,16 @@
 </div>
 
 <!-- Routine modal -->
+<div class="overlay" id="dnOverlay">
+  <div class="modal" style="width:700px;">
+    <h3 style="margin:0 0 2px;">✓ Completed sticky notes — <span id="dnWho"></span></h3>
+    <p style="font-size:12px;color:var(--muted);margin:2px 0 6px;">Every note marked ✓ dealt-with is kept here. Restore one to put it back on the board, or delete it for good.</p>
+    <div class="dn-list" id="dnList"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <button class="btn ghost" id="dnClose">Close</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="rtOverlay">
   <div class="modal">
     <h3 id="rTitle">Add regular duty</h3>
@@ -735,7 +758,7 @@ const CAD_DAYS = {daily:1, weekly:7, monthly:31, quarterly:92, yearly:366};
 const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","#c98500","#d03b3b"];
 
 /* ================= State ================= */
-let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], notepads = [], docs = [], docFolders = [];
+let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], doneNotes = [], notepads = [], docs = [], docFolders = [];
 let profileTab = "notes", currentDocFolder = "", docView = "list", taskTab = "adhoc";
 let selDocs = new Set();
 let focusNotepad = false;
@@ -767,18 +790,19 @@ function setOnline(ok) {
 }
 async function loadAll(silent) {
   try {
-    const [e, t, r, a, s, n, np, dc, df] = await Promise.all([
+    const [e, t, r, a, s, n, dn, np, dc, df] = await Promise.all([
       api("/hr_employees?select=id,full_name,role,color,active&active=eq.true&order=full_name.asc"),
       api("/tb_tasks?select=*&order=created_at.desc"),
       api("/tb_routines?select=*&order=created_at.asc"),
       api("/tb_activity?select=*&order=created_at.desc&limit=300"),
       api("/tb_settings?select=key,value"),
       api("/tb_notes?select=*&done=eq.false&order=created_at.asc"),
+      api("/tb_notes?select=*&done=eq.true&order=done_at.desc&limit=300"),
       api("/tb_notepads?select=*"),
       api("/tb_docs?select=*&order=created_at.desc"),
       api("/tb_doc_folders?select=*&order=name.asc")
     ]);
-    allStaff = e; tasks = t; routines = r; activity = a; notes = n; notepads = np; docs = dc; docFolders = df;
+    allStaff = e; tasks = t; routines = r; activity = a; notes = n; doneNotes = dn; notepads = np; docs = dc; docFolders = df;
     const st = (s||[]).find(x=>x.key==="sites");
     sites = st && Array.isArray(st.value) ? st.value : [];
     const tm = (s||[]).find(x=>x.key==="team");
@@ -1080,6 +1104,7 @@ function vProfile(){
         <button type="button" id="npAttach" title="Attach photo / file / zip">📎 Attach</button>
         <button type="button" data-add-note="${e.id}" title="Drop a sticky note onto this page">📌 Sticky note</button>
         <button type="button" id="npDocsBtn" title="This employee’s documents">📁 Documents${docs.filter(d=>d.employee_id===e.id).length?` (${docs.filter(d=>d.employee_id===e.id).length})`:""}</button>
+        <button type="button" id="npDoneNotesBtn" title="Sticky notes marked ✓ dealt-with">✓ Completed notes${doneNotes.filter(x=>x.employee_id===e.id).length?` (${doneNotes.filter(x=>x.employee_id===e.id).length})`:""}</button>
         <div class="spacer"></div>
         <span class="m-meta">${(()=>{const p=notepads.find(x=>x.employee_id===e.id); return p&&p.updated_at? "saved "+fmtWhen(p.updated_at)+(p.updated_by?" · "+esc(p.updated_by.split(" ")[0]):"") : "saves automatically";})()}</span>
       </div>
@@ -1306,6 +1331,7 @@ function showMoveMenu(d, x, y){
 }
 function wireDocs(c){
   const btn=c.querySelector("#npDocsBtn"); if(btn) btn.onclick=()=>{ profileTab="docs"; render(); };
+  const dnb=c.querySelector("#npDoneNotesBtn"); if(dnb) dnb.onclick=()=>openDoneNotes(profileEmp);
   const back=c.querySelector("#docsBack"); if(back) back.onclick=()=>{ profileTab="notes"; render(); };
   const area=c.querySelector("#docsArea");
   if(!area) return;
@@ -2716,6 +2742,46 @@ function startRealtime(){
     ch.subscribe(status => { if (status === "SUBSCRIBED") setOnline(true); });
   } catch(e){ console.error("realtime", e); }
 }
+
+/* ---- Completed sticky notes archive ---- */
+function openDoneNotes(empId){
+  $("dnWho").textContent = empName(empId);
+  renderDoneNotes(empId);
+  $("dnOverlay").classList.add("open");
+  $("dnOverlay").dataset.emp = empId;
+}
+function renderDoneNotes(empId){
+  const list = doneNotes.filter(x=>x.employee_id===empId);
+  $("dnList").innerHTML = list.length ? list.map(n=>`
+    <div class="dn-note c-${n.color||'yellow'}" data-dn="${n.id}">
+      <div class="dn-body">${sanitizeHtml(n.content||"")||'<span style="opacity:.5">(empty note)</span>'}</div>
+      <div class="dn-meta">✓ dealt with ${n.done_at?fmtWhen(n.done_at):""}</div>
+      <div class="dn-actions">
+        <button data-dn-restore="${n.id}">↩ Restore</button>
+        <button class="danger" data-dn-del="${n.id}">× Delete</button>
+      </div>
+    </div>`).join("") : `<div class="empty" style="padding:30px;width:100%;">No completed sticky notes yet — tick ✓ on a sticky note and it will be kept here.</div>`;
+  $("dnList").querySelectorAll("[data-dn-restore]").forEach(b=>b.onclick=async ()=>{
+    try{
+      await api(`/tb_notes?id=eq.${b.dataset.dnRestore}`, {method:"PATCH", body:JSON.stringify({done:false, done_at:null})});
+      await logActivity("sticky note restored ↩", null, empName(empId)+(meName()?" — by "+meName():""));
+      toast("Note restored to the board");
+      await loadAll(true);
+      renderDoneNotes(empId);
+    }catch(e){ console.error(e); toast("Couldn’t restore — check connection"); }
+  });
+  $("dnList").querySelectorAll("[data-dn-del]").forEach(b=>b.onclick=async ()=>{
+    if (!b.dataset.armed){ b.dataset.armed="1"; b.textContent="Sure? Click again"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="× Delete"; }, 2500); return; }
+    try{
+      await api(`/tb_notes?id=eq.${b.dataset.dnDel}`, {method:"DELETE"});
+      toast("Note deleted");
+      await loadAll(true);
+      renderDoneNotes(empId);
+    }catch(e){ console.error(e); toast("Couldn’t delete — check connection"); }
+  });
+}
+$("dnClose").onclick=()=>$("dnOverlay").classList.remove("open");
+$("dnOverlay").addEventListener("click", e=>{ if(e.target.id==="dnOverlay") $("dnOverlay").classList.remove("open"); });
 
 /* ---- Mobile drawer ---- */
 function isPhone(){ return matchMedia("(max-width:820px)").matches; }
