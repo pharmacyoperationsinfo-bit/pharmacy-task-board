@@ -348,6 +348,7 @@
     .np-tasks{border-left:none; border-top:1px solid var(--line); margin-left:0; padding-left:0; flex-basis:auto !important; display:block !important;}
     .np-divider{display:none;} }
   .np-body{min-height:calc(100vh - 210px); font-size:14.5px; padding:10px 6px 20px;}
+  .rich-target *:not(h1):not(h2):not(h3){font-size:inherit !important; font-family:inherit !important; line-height:inherit !important;}
   .np-body:empty::before{content:attr(data-placeholder); color:var(--muted);}
   .docs-area{min-height:calc(100vh - 195px); padding:10px 4px; position:relative;}
   .docs-area.dropping{outline:2px dashed var(--accent); outline-offset:-6px;}
@@ -2414,6 +2415,9 @@ function sanitizeHtml(html){
       if(/^on/i.test(a.name)) el.removeAttribute(a.name);
       else if(/^(href|src)$/i.test(a.name) && /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
     });
+    if (el.style){ ["font-size","font-family","line-height","letter-spacing"].forEach(p=>el.style.removeProperty(p));
+      if(!el.getAttribute("style")) el.removeAttribute("style"); }
+    if (el.tagName==="FONT"){ el.removeAttribute("size"); el.removeAttribute("face"); }
   });
   // a checklist row must hold ONE checkbox + its own text; free any lines trapped inside it
   div.querySelectorAll(".nchk").forEach(chk=>{
