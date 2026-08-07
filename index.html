@@ -323,18 +323,30 @@
   .notes-scroll{overflow:auto; height:calc(100vh - 300px); min-height:440px; overscroll-behavior:contain;}
   /* profile view = full window: no quick-add bar, no filter bar */
   body.profile-mode .quickbar, body.profile-mode .topbar{display:none;}
+  body.np-full .np-panel{position:fixed; inset:0; z-index:140; background:var(--surface); margin:0;
+    padding:10px 22px 14px; overflow:auto; animation:npSlideIn .28s ease;}
+  @keyframes npSlideIn{from{transform:translateX(100%);}to{transform:none;}}
+  body.np-full .np-canvas, body.np-full .np-tasks{height:calc(100vh - 96px);}
+  body.np-full .np-body{min-height:calc(100vh - 120px);}
+  #npFullBtn.fmt-on{background:var(--ink); color:#fff; border-radius:6px;}
   body.profile-mode .notes-scroll{height:70vh;}
   .np-panel{margin-bottom:10px; padding:0 14px 4px;}
   .np-toolbar{padding-top:8px;}
   .np-wrap{display:flex; align-items:stretch; gap:0;}
   .np-canvas{position:relative; flex:1; min-width:0; overflow-y:auto; height:calc(100vh - 190px);}
   .np-canvas .snote{z-index:5;}
-  .np-tasks{flex:0 0 300px; border-left:1px solid var(--line); padding:10px 0 10px 14px; margin-left:12px;
+  .np-divider{flex:0 0 12px; cursor:col-resize; display:flex; align-items:center; justify-content:center; margin-left:6px;
+    border-radius:6px; transition:background .15s;}
+  .np-divider span{width:4px; height:46px; border-radius:99px; background:var(--line);}
+  .np-divider:hover{background:rgba(42,120,214,.08);}
+  .np-divider:hover span{background:var(--accent);}
+  .np-tasks{flex:0 0 300px; border-left:1px solid var(--line); padding:10px 0 10px 14px; margin-left:0;
     overflow-y:auto; height:calc(100vh - 190px); font-size:12.5px;}
   .np-tasks .card{margin-bottom:6px;}
   .np-tasks .pg-head{padding:6px 2px 6px;}
   @media (max-width:900px){ .np-wrap{flex-direction:column;} .np-canvas,.np-tasks{height:auto; min-height:340px;}
-    .np-tasks{border-left:none; border-top:1px solid var(--line); margin-left:0; padding-left:0;} }
+    .np-tasks{border-left:none; border-top:1px solid var(--line); margin-left:0; padding-left:0; flex-basis:auto !important; display:block !important;}
+    .np-divider{display:none;} }
   .np-body{min-height:calc(100vh - 210px); font-size:14.5px; padding:10px 6px 20px;}
   .np-body:empty::before{content:attr(data-placeholder); color:var(--muted);}
   .docs-area{min-height:calc(100vh - 195px); padding:10px 4px; position:relative;}
@@ -423,7 +435,7 @@
   .notes-canvas .snote{cursor:auto;}
   .nchk{display:flex; gap:6px; align-items:baseline;}
   .nchk input{accent-color:#0b0b0b; width:13px; height:13px;}
-  .nchk:has(input:checked) span{text-decoration:line-through; opacity:.55;}
+  .nchk:has(> input:checked) > span{text-decoration:line-through; opacity:.55;}
   /* rich text content (notes + note editor + task notes) */
   .rich-target h2{font-size:1.35em; font-weight:700; margin:.4em 0 .15em;}
   .rich-target h3{font-size:1.1em; font-weight:600; margin:.35em 0 .1em;}
@@ -617,6 +629,7 @@
         <button type="button" data-ne="bold" title="Bold — Cmd/Ctrl+B"><b>B</b></button>
         <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
         <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
+        <button type="button" data-ne="strike" title="Strikethrough — Cmd/Ctrl+Shift+X"><s>S</s></button>
         <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:5px;">HL</button>
         <button type="button" class="hl-dot" data-ne="hl:#b9f6ca" style="background:#b9f6ca" title="Green highlight"></button>
         <button type="button" class="hl-dot" data-ne="hl:#ffcdd2" style="background:#ffcdd2" title="Pink highlight"></button>
@@ -707,6 +720,7 @@
       <button type="button" data-ne="bold" title="Bold — Cmd/Ctrl+B"><b>B</b></button>
       <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
       <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
+      <button type="button" data-ne="strike" title="Strikethrough — Cmd/Ctrl+Shift+X"><s>S</s></button>
       <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:6px;">HL</button>
         <button type="button" class="hl-dot" data-ne="hl:#fff176" style="background:#fff176" title="Yellow highlight"></button>
         <button type="button" class="hl-dot" data-ne="hl:#b9f6ca" style="background:#b9f6ca" title="Green highlight"></button>
@@ -955,6 +969,7 @@ function render(){
   // don't wipe the page while someone is typing a sticky note or dragging one (background sync keeps running)
   if (noteDragging || (document.activeElement && ((document.activeElement.closest && document.activeElement.closest(".sn-body, .np-body")) || document.activeElement.id==="newFolderName"))) return;
   document.body.classList.toggle("profile-mode", view==="profile");
+  if (view!=="profile") document.body.classList.remove("np-full");
   renderNav();
   const c = $("content");
   if (view==="profile"){
@@ -1103,6 +1118,7 @@ function vProfile(){
         <button type="button" data-ne="bold" title="Bold — Cmd/Ctrl+B"><b>B</b></button>
         <button type="button" data-ne="italic" title="Italic — Cmd/Ctrl+I"><i>I</i></button>
         <button type="button" data-ne="underline" title="Underline — Cmd/Ctrl+U"><u>U</u></button>
+        <button type="button" data-ne="strike" title="Strikethrough — Cmd/Ctrl+Shift+X"><s>S</s></button>
         <button type="button" data-ne="hl" title="Highlight — Cmd/Ctrl+Shift+E" style="background:#fff176;border-radius:6px;">HL</button>
         <button type="button" class="hl-dot" data-ne="hl:#fff176" style="background:#fff176" title="Yellow highlight"></button>
         <button type="button" class="hl-dot" data-ne="hl:#b9f6ca" style="background:#b9f6ca" title="Green highlight"></button>
@@ -1119,6 +1135,7 @@ function vProfile(){
         <button type="button" data-add-note="${e.id}" title="Drop a sticky note onto this page">📌 Sticky note</button>
         <button type="button" id="npDocsBtn" title="This employee’s documents">📁 Documents${docs.filter(d=>d.employee_id===e.id).length?` (${docs.filter(d=>d.employee_id===e.id).length})`:""}</button>
         <button type="button" id="npDoneNotesBtn" title="Sticky notes marked ✓ dealt-with">✓ Completed notes${doneNotes.filter(x=>x.employee_id===e.id).length?` (${doneNotes.filter(x=>x.employee_id===e.id).length})`:""}</button>
+        <button type="button" id="npFullBtn" title="Slide the note over the whole page — Esc or click again to slide back">⤢ Full screen</button>
         <div class="spacer"></div>
         <span class="m-meta">${(()=>{const p=notepads.find(x=>x.employee_id===e.id); return p&&p.updated_at? "saved "+fmtWhen(p.updated_at)+(p.updated_by?" · "+esc(p.updated_by.split(" ")[0]):"") : "saves automatically";})()}</span>
       </div>
@@ -1128,7 +1145,8 @@ function vProfile(){
             data-placeholder="Type straight away — notes for ${esc(e.full_name)}. Heading / Subheading / Body, checklists, paste photos, files & zips… Sticky notes float on top.">${sanitizeHtml((notepads.find(x=>x.employee_id===e.id)||{}).content||"")}</div>
           ${myNotes.map(noteHTML).join("")}
         </div>
-        <div class="np-tasks">
+        <div class="np-divider" id="npDivider" title="Drag to slide the note wider or narrower — double-click to hide / show the tasks column"><span></span></div>
+        <div class="np-tasks" id="npTasks">
           ${rts.length?`<div class="rs-head" style="padding:2px 0 4px;">Regular cadence</div>
             ${rts.map(r=>{const st=routineState(r);
               return `<div class="rs-item ${st.cls==='over'?'overdue':st.cls==='soon'?'duesoon':''}" data-rt="${r.id}" title="Click to edit — ${r.cadence}">
@@ -1346,6 +1364,39 @@ function showMoveMenu(d, x, y){
 function wireDocs(c){
   const btn=c.querySelector("#npDocsBtn"); if(btn) btn.onclick=()=>{ profileTab="docs"; render(); };
   const dnb=c.querySelector("#npDoneNotesBtn"); if(dnb) dnb.onclick=()=>openDoneNotes(profileEmp);
+  const dividerEl=c.querySelector("#npDivider"), tasksEl=c.querySelector("#npTasks");
+  if (dividerEl && tasksEl){
+    applyTasksW(tasksEl);
+    dividerEl.addEventListener("pointerdown", ev=>{
+      ev.preventDefault();
+      noteDragging = true;
+      const move = m=>{
+        const wrap = dividerEl.parentElement.getBoundingClientRect();
+        let w = Math.round(wrap.right - m.clientX - 12);
+        w = Math.max(0, Math.min(w, Math.round(wrap.width*0.7)));
+        npTasksW = w < 50 ? 0 : w;
+        applyTasksW(tasksEl);
+      };
+      const up = ()=>{
+        noteDragging = false;
+        try{ localStorage.setItem("cfTasksW", String(npTasksW)); }catch(_){}
+        removeEventListener("pointermove", move); removeEventListener("pointerup", up);
+      };
+      addEventListener("pointermove", move); addEventListener("pointerup", up);
+    });
+    dividerEl.addEventListener("dblclick", ()=>{
+      npTasksW = npTasksW===0 ? 300 : 0;
+      try{ localStorage.setItem("cfTasksW", String(npTasksW)); }catch(_){}
+      applyTasksW(tasksEl);
+    });
+  }
+  const nfb=c.querySelector("#npFullBtn");
+  if (nfb){
+    const label=()=>{ const on=document.body.classList.contains("np-full");
+      nfb.textContent = on ? "⇤ Slide back" : "⤢ Full screen"; nfb.classList.toggle("fmt-on", on); };
+    nfb.onclick=()=>{ document.body.classList.toggle("np-full"); label(); };
+    label();
+  }
   const back=c.querySelector("#docsBack"); if(back) back.onclick=()=>{ profileTab="notes"; render(); };
   const area=c.querySelector("#docsArea");
   if(!area) return;
@@ -1658,6 +1709,7 @@ function applyCmd(cmd){
     case "bold": document.execCommand("bold"); break;
     case "italic": document.execCommand("italic"); break;
     case "underline": document.execCommand("underline"); break;
+    case "strike": document.execCommand("strikeThrough"); break;
     case "clear": document.execCommand("removeFormat"); break;
     case "ul": document.execCommand("insertUnorderedList"); break;
     case "ol": document.execCommand("insertOrderedList"); break;
@@ -1683,7 +1735,7 @@ function updateHLState(){
   let cur="", st={block:""};
   if (inRich){
     try{ cur = String(document.queryCommandValue("hiliteColor") || document.queryCommandValue("backColor") || ""); }catch(_){ }
-    ["bold","italic","underline","insertUnorderedList","insertOrderedList"].forEach(c=>{
+    ["bold","italic","underline","strikeThrough","insertUnorderedList","insertOrderedList"].forEach(c=>{
       try{ st[c]=document.queryCommandState(c); }catch(_){ st[c]=false; } });
     try{ st.block = String(document.queryCommandValue("formatBlock")||"").toLowerCase(); }catch(_){ }
   }
@@ -1696,6 +1748,7 @@ function updateHLState(){
     else if (k==="bold") b.classList.toggle("fmt-on", !!st.bold);
     else if (k==="italic") b.classList.toggle("fmt-on", !!st.italic);
     else if (k==="underline") b.classList.toggle("fmt-on", !!st.underline);
+    else if (k==="strike") b.classList.toggle("fmt-on", !!st.strikeThrough);
     else if (k==="ul") b.classList.toggle("fmt-on", !!st.insertUnorderedList);
     else if (k==="ol") b.classList.toggle("fmt-on", !!st.insertOrderedList);
     else if (k==="h") b.classList.toggle("fmt-on", st.block==="h2");
@@ -1839,6 +1892,27 @@ function chkApply(){
     const ss = getSelection(); ss.removeAllRanges(); ss.addRange(r);
   }
 }
+/* Ticked checklist items sink to the bottom of their group (Apple Notes sorting) */
+document.addEventListener("change", e=>{
+  const cb = e.target;
+  if (!cb.matches || !cb.matches('.nchk > input[type=checkbox]')) return;
+  const row = cb.closest(".nchk");
+  const root = cb.closest(".rich-target");
+  if (!row || !root) return;
+  const isChk = n => n && n.nodeType===1 && n.classList && n.classList.contains("nchk");
+  let first=row; while (isChk(first.previousElementSibling)) first=first.previousElementSibling;
+  let last=row;  while (isChk(last.nextElementSibling)) last=last.nextElementSibling;
+  const run=[]; for (let n=first; ; n=n.nextElementSibling){ run.push(n); if (n===last) break; }
+  const rowChecked = n => { const i=n.querySelector(":scope > input[type=checkbox]"); return i && i.checked; };
+  if (cb.checked){
+    if (row !== last) last.after(row);          // sink to the bottom of the list
+  } else {
+    const firstDone = run.find(n => n!==row && rowChecked(n));
+    if (firstDone) firstDone.before(row);       // rise back above the done ones
+  }
+  root.dispatchEvent(new Event("input", {bubbles:true}));
+});
+
 /* Enter inside a checklist behaves like Apple Notes:
    Enter on an item -> next line is a new tick-box (splitting text at the cursor);
    Enter on an EMPTY item -> leaves the checklist and returns to normal text. */
@@ -1899,7 +1973,7 @@ document.addEventListener("keydown", e=>{
     if (k==="b") cmd="bold"; else if (k==="i") cmd="italic"; else if (k==="u") cmd="underline";
   } else if (e.shiftKey && !e.altKey){
     if (k==="h") cmd="h"; else if (k==="j") cmd="sub"; else if (k==="0"||e.code==="Digit0") cmd="body";
-    else if (k==="e") cmd="hl"; else if (k==="l" || k==="b") cmd="chk";
+    else if (k==="e") cmd="hl"; else if (k==="l" || k==="b") cmd="chk"; else if (k==="x") cmd="strike";
     else if (e.code==="Digit7") cmd="ol"; else if (e.code==="Digit8") cmd="ul";
   }
   if (cmd){ e.preventDefault(); applyCmd(cmd); richAutosave(t); }
@@ -2342,6 +2416,16 @@ function sanitizeHtml(html){
       else if(/^(href|src)$/i.test(a.name) && /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
     });
   });
+  // a checklist row must hold ONE checkbox + its own text; free any lines trapped inside it
+  div.querySelectorAll(".nchk").forEach(chk=>{
+    let anchor = chk;
+    [...chk.children].forEach(ch=>{
+      if (ch.tagName==="INPUT" || ch.tagName==="SPAN") return;
+      anchor.after(ch); anchor = ch;
+    });
+    const span = chk.querySelector(":scope > span");
+    if (span) [...span.querySelectorAll("div,ul,ol,h1,h2,h3")].forEach(bl=>{ anchor.after(bl); anchor = bl; });
+  });
   return div.innerHTML;
 }
 function setNotes(desc){
@@ -2736,6 +2820,12 @@ $("btnExport").onclick=()=>{
   toast("CSV downloaded");
 };
 document.addEventListener("keydown", e=>{
+  if (e.key==="Escape" && document.body.classList.contains("np-full")
+      && !$("neOverlay").classList.contains("open") && !$("taskPanel").classList.contains("open")){
+    document.body.classList.remove("np-full");
+    const b=document.getElementById("npFullBtn"); if(b){ b.textContent="⤢ Full screen"; b.classList.remove("fmt-on"); }
+    return;
+  }
   if (e.key==="Escape"){
     if ($("neOverlay").classList.contains("open")){ closeNoteEditor(); return; }
     closeTask(); $("empOverlay").classList.remove("open"); $("rtOverlay").classList.remove("open"); $("lightbox").classList.remove("open");
@@ -2771,6 +2861,16 @@ function startRealtime(){
     }));
     ch.subscribe(status => { if (status === "SUBSCRIBED") setOnline(true); });
   } catch(e){ console.error("realtime", e); }
+}
+
+/* ---- Note/tasks slider ---- */
+let npTasksW = 300;
+try{ const v=parseInt(localStorage.getItem("cfTasksW")); if(!isNaN(v)) npTasksW=Math.max(0,Math.min(v,900)); }catch(_){}
+function applyTasksW(el){
+  el = el || document.getElementById("npTasks");
+  if (!el) return;
+  if (npTasksW===0){ el.style.display="none"; }
+  else { el.style.display=""; el.style.flex = "0 0 "+npTasksW+"px"; }
 }
 
 /* ---- Completed sticky notes archive ---- */
