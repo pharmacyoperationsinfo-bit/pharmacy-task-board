@@ -370,9 +370,18 @@
   .dv-switch{display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden;}
   .dv-switch button{padding:3px 10px; font-size:12.5px; color:var(--muted); border-radius:0;}
   .dv-switch button.on{background:var(--surface-2); color:var(--ink); font-weight:700;}
-  .doc-table{margin-top:4px;}
+  .doc-table{margin-top:4px; table-layout:fixed; width:100%;}
   .doc-table td{padding:7px 10px;}
   .doc-table th{padding:7px 10px;}
+  .doc-table th:nth-child(1), .doc-table td:nth-child(1){width:28px;}
+  .doc-table th:nth-child(2), .doc-table td:nth-child(2){width:34px;}
+  .doc-table th:nth-child(4), .doc-table td:nth-child(4){width:66px;}
+  .doc-table th:nth-child(5), .doc-table td:nth-child(5){width:70px;}
+  .doc-table th:nth-child(6), .doc-table td:nth-child(6){width:106px;}
+  .doc-table th:nth-child(7), .doc-table td:nth-child(7){width:64px;}
+  .doc-table th:nth-child(8), .doc-table td:nth-child(8){width:160px;}
+  .doc-table td .doc-name{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .doc-table .rt-actions{white-space:nowrap; display:inline-flex; gap:4px; align-items:center;}
   .doc-grid{display:grid; gap:12px;}
   .doc-grid.large{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
   .doc-grid.small{grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); gap:8px;}
