@@ -435,7 +435,6 @@
   .notes-canvas .snote{cursor:auto;}
   .nchk{display:flex; gap:6px; align-items:baseline;}
   .nchk input{accent-color:#0b0b0b; width:13px; height:13px;}
-  .nchk:has(> input:checked) > span{text-decoration:line-through; opacity:.55;}
   /* rich text content (notes + note editor + task notes) */
   .rich-target h2{font-size:1.35em; font-weight:700; margin:.4em 0 .15em;}
   .rich-target h3{font-size:1.1em; font-weight:600; margin:.35em 0 .1em;}
@@ -1892,27 +1891,6 @@ function chkApply(){
     const ss = getSelection(); ss.removeAllRanges(); ss.addRange(r);
   }
 }
-/* Ticked checklist items sink to the bottom of their group (Apple Notes sorting) */
-document.addEventListener("change", e=>{
-  const cb = e.target;
-  if (!cb.matches || !cb.matches('.nchk > input[type=checkbox]')) return;
-  const row = cb.closest(".nchk");
-  const root = cb.closest(".rich-target");
-  if (!row || !root) return;
-  const isChk = n => n && n.nodeType===1 && n.classList && n.classList.contains("nchk");
-  let first=row; while (isChk(first.previousElementSibling)) first=first.previousElementSibling;
-  let last=row;  while (isChk(last.nextElementSibling)) last=last.nextElementSibling;
-  const run=[]; for (let n=first; ; n=n.nextElementSibling){ run.push(n); if (n===last) break; }
-  const rowChecked = n => { const i=n.querySelector(":scope > input[type=checkbox]"); return i && i.checked; };
-  if (cb.checked){
-    if (row !== last) last.after(row);          // sink to the bottom of the list
-  } else {
-    const firstDone = run.find(n => n!==row && rowChecked(n));
-    if (firstDone) firstDone.before(row);       // rise back above the done ones
-  }
-  root.dispatchEvent(new Event("input", {bubbles:true}));
-});
-
 /* Enter inside a checklist behaves like Apple Notes:
    Enter on an item -> next line is a new tick-box (splitting text at the cursor);
    Enter on an EMPTY item -> leaves the checklist and returns to normal text. */
