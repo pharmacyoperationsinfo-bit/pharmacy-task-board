@@ -349,6 +349,10 @@
     .np-divider{display:none;} }
   .np-body{min-height:calc(100vh - 210px); font-size:14.5px; padding:10px 6px 20px;}
   .rich-target *:not(h1):not(h2):not(h3){font-size:inherit !important; font-family:inherit !important; line-height:inherit !important;}
+  .rich-target div, .rich-target p, .rich-target h1, .rich-target h2, .rich-target h3{
+    background:transparent !important; float:none !important; width:auto !important;
+    border:none !important; outline:none !important; box-shadow:none !important;}
+  .rich-target div{display:block !important;}
   .np-body:empty::before{content:attr(data-placeholder); color:var(--muted);}
   .docs-area{min-height:calc(100vh - 195px); padding:10px 4px; position:relative;}
   .docs-area.dropping{outline:2px dashed var(--accent); outline-offset:-6px;}
@@ -2513,7 +2517,16 @@ function sanitizeHtml(html){
       if(/^on/i.test(a.name)) el.removeAttribute(a.name);
       else if(/^(href|src)$/i.test(a.name) && /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
     });
-    if (el.style){ ["font-size","font-family","line-height","letter-spacing"].forEach(p=>el.style.removeProperty(p));
+    if (el.style){
+      ["font-size","font-family","line-height","letter-spacing","float","position","left","top","right","bottom",
+       "width","min-width","max-width","margin","margin-left","margin-right","text-indent","border","outline",
+       "box-shadow","display","column-count","columns","white-space"].forEach(p=>el.style.removeProperty(p));
+      const bg = (el.style.backgroundColor||"").trim();
+      if (bg){
+        const allowed = Object.values(HL_RGB).includes(bg) || Object.keys(HL_RGB).includes(bg.toLowerCase());
+        const isBlock = /^(DIV|P|H1|H2|H3|UL|OL|LI|BLOCKQUOTE|TABLE|TR|TD)$/.test(el.tagName);
+        if (!allowed || isBlock){ el.style.removeProperty("background-color"); el.style.removeProperty("background"); }
+      } else if (el.style.background){ el.style.removeProperty("background"); }
       if(!el.getAttribute("style")) el.removeAttribute("style"); }
     if (el.tagName==="FONT"){ el.removeAttribute("size"); el.removeAttribute("face"); }
   });
