@@ -1913,6 +1913,102 @@ document.addEventListener("change", e=>{
   root.dispatchEvent(new Event("input", {bubbles:true}));
 });
 
+/* Live repair: free any text/blocks trapped inside a checkbox row */
+function chkUntrap(chk){
+  let changed=false, anchor=chk;
+  const span=chk.querySelector(":scope > span");
+  [...chk.children].forEach(ch=>{
+    if (ch.tagName==="INPUT" || ch===span) return;
+    anchor.after(ch); anchor=ch; changed=true;
+  });
+  if (span) [...span.querySelectorAll("div,ul,ol,h1,h2,h3")].forEach(bl=>{ anchor.after(bl); anchor=bl; changed=true; });
+  return changed;
+}
+function untrapAndRecheck(chk, sel, range, t){
+  const sc0=range.startContainer, so0=range.startOffset;
+  if (!chkUntrap(chk)) return chk;                    // structure fine
+  const r=document.createRange();
+  try{ r.setStart(sc0, Math.min(so0, sc0.nodeType===3 ? sc0.nodeValue.length : sc0.childNodes.length)); }
+  catch(_){ r.selectNodeContents(t); r.collapse(false); }
+  r.collapse(true);
+  sel.removeAllRanges(); sel.addRange(r);
+  t.dispatchEvent(new Event("input", {bubbles:true}));
+  const el2 = sc0.nodeType===1 ? sc0 : sc0.parentElement;
+  return (el2 && el2.closest) ? el2.closest(".nchk") : null;  // may now be a plain line
+}
+
+/* Backspace at the start of a checklist item removes its checkbox (back to plain text) */
+document.addEventListener("keydown", e=>{
+  if (e.key !== "Backspace") return;
+  const t = document.activeElement;
+  if (!t || !t.classList || !t.classList.contains("rich-target")) return;
+  const sel = getSelection(); if (!sel.rangeCount || !sel.isCollapsed) return;
+  const range = sel.getRangeAt(0);
+  const sc = range.startContainer;
+  const el = sc.nodeType===1 ? sc : sc.parentElement;
+  let chk = el && el.closest ? el.closest(".nchk") : null;
+  if (!chk || !t.contains(chk)){
+    // caret at the very start of a line directly BELOW a checklist row:
+    // backspace merges up — deleting an empty checkbox row, or joining into a filled one
+    let line = el===t ? null : el;
+    while (line && line.parentNode !== t) line = line.parentNode;
+    if (!line || !line.previousElementSibling) return;
+    const prev = line.previousElementSibling;
+    if (!(prev.classList && prev.classList.contains("nchk"))) return;
+    let atStart = false;
+    if (sc.nodeType===3){
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      atStart = walker.nextNode()===sc && range.startOffset===0;
+    } else atStart = range.startOffset===0;
+    if (!atStart) return;
+    e.preventDefault();
+    const prevText = (prev.textContent||"").replace(/\u00a0/g," ").trim();
+    if (!prevText){ prev.remove(); }
+    else {
+      const pspan = prev.querySelector(":scope > span") || prev;
+      const firstIn = line.firstChild;
+      while (line.firstChild) pspan.appendChild(line.firstChild);
+      line.remove();
+      const r = document.createRange();
+      try{ if (firstIn) r.setStartBefore(firstIn); else { r.selectNodeContents(pspan); r.collapse(false); } }
+      catch(_){ r.selectNodeContents(pspan); r.collapse(false); }
+      r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+    }
+    t.dispatchEvent(new Event("input", {bubbles:true}));
+    return;
+  }
+  chk = untrapAndRecheck(chk, sel, range, t);
+  if (!chk) return;                                   // repaired to a plain line — normal Backspace
+  const span = chk.querySelector(":scope > span");
+  const box = span || chk;
+  let atStart = false;
+  if (sc.nodeType===3){
+    const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+    const firstText = walker.nextNode();
+    if (firstText === sc){
+      const nbspLead = /^\u00a0/.test(sc.nodeValue||"");
+      atStart = range.startOffset <= (nbspLead ? 1 : 0);
+    }
+  } else {
+    atStart = (el===span && range.startOffset===0) || (el===chk && range.startOffset<=1);
+  }
+  if (!atStart) return;
+  e.preventDefault();
+  const div = document.createElement("div");
+  while (box.firstChild){
+    const c = box.firstChild;
+    if (c.nodeType===1 && c.tagName==="INPUT"){ box.removeChild(c); continue; }
+    div.appendChild(c);
+  }
+  if (div.firstChild && div.firstChild.nodeType===3)
+    div.firstChild.nodeValue = div.firstChild.nodeValue.replace(/^\u00a0+/, "");
+  if (!div.childNodes.length) div.innerHTML = "<br>";
+  chk.replaceWith(div);
+  const r = document.createRange(); r.selectNodeContents(div); r.collapse(true);
+  sel.removeAllRanges(); sel.addRange(r);
+  t.dispatchEvent(new Event("input", {bubbles:true}));
+});
+
 /* Enter inside a checklist behaves like Apple Notes:
    Enter on an item -> next line is a new tick-box (splitting text at the cursor);
    Enter on an EMPTY item -> leaves the checklist and returns to normal text. */
@@ -1924,8 +2020,10 @@ document.addEventListener("keydown", e=>{
   const range = sel.getRangeAt(0);
   const sc = range.startContainer;
   const el = sc.nodeType===1 ? sc : sc.parentElement;
-  const chk = el && el.closest ? el.closest(".nchk") : null;
+  let chk = el && el.closest ? el.closest(".nchk") : null;
   if (!chk || !t.contains(chk)) return;
+  chk = untrapAndRecheck(chk, sel, range, t);
+  if (!chk) return;                                   // repaired to a plain line — normal Enter
   e.preventDefault();
   if (!range.collapsed) range.deleteContents();
   const span = chk.querySelector("span");
