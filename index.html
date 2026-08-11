@@ -149,7 +149,10 @@
   .rec-btn.rec-on{background:var(--red-bg); border-color:var(--red); color:var(--red-ink); animation:workpulse 1.6s ease-in-out infinite;}
   .ph-item.audio{flex:1 1 100%; display:flex; align-items:center; gap:8px; min-width:240px;}
   .ph-item.audio audio{height:34px; flex:1; min-width:0;}
-  .ph-item.audio .a-name{font-size:11.5px; color:var(--muted); max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ph-item.audio .a-name{font-size:11.5px; color:var(--muted); max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;}
+  .ph-item.audio .a-name:hover{color:var(--accent); text-decoration:underline;}
+  .ph-item.audio .rm{position:static; margin:0; width:22px; height:22px; visibility:visible;}
+  .ph-item.audio .a-ren{margin-left:auto;}
   .c-thumbs{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;}
   .c-thumbs img{width:34px; height:34px; object-fit:cover; border-radius:5px; border:1px solid var(--line);}
 
@@ -2682,7 +2685,7 @@ function renderPhotos(){
   const items = editing.images.map((p,ix)=> isImg(p)
     ? `<div class="ph-item"><img src="${esc(photoUrl(p))}" data-view="${ix}" alt="attachment"><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`
     : isAudio(p)
-    ? `<div class="ph-item audio">🎤<audio controls preload="metadata" src="${esc(photoUrl(p))}"></audio><span class="a-name" title="${esc(p.name||"voice note")}">${esc(p.name||"voice note")}</span><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`
+    ? `<div class="ph-item audio">🎤<audio controls preload="metadata" src="${esc(photoUrl(p))}"></audio><span class="a-name" data-aname="${ix}" title="${esc(p.name||"voice note")} — click to rename">${esc(p.name||"voice note")}</span><button class="rm a-ren" data-ren="${ix}" title="Rename" style="visibility:visible;font-size:12px;">✎</button><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`
     : `<div class="ph-item file"><a class="file-chip" href="${esc(photoUrl(p))}" target="_blank" rel="noopener" title="${esc(p.name||"file")}">📎 ${esc((p.name||"file"))}</a><button class="rm" data-rm="${ix}" title="Remove">×</button></div>`).join("");
   const linkItems = editing.links.map((l,ix)=>
     `<div class="ph-item file"><a class="file-chip" href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.url)}">🔗 ${esc(l.title||l.url)}</a><button class="rm" data-rml="${ix}" title="Remove">×</button></div>`).join("");
@@ -2695,6 +2698,29 @@ function renderPhotos(){
       headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}}); }catch(e){ console.error(e); }
   });
   $("mPhotos").querySelectorAll("[data-rml]").forEach(b=>b.onclick=()=>{ editing.links.splice(+b.dataset.rml,1); renderPhotos(); });
+  const startAudioRename = ix => {
+    const span=$("mPhotos").querySelector(`.a-name[data-aname="${ix}"]`);
+    if(!span || span.dataset.editing) return;
+    span.dataset.editing="1";
+    const inp=document.createElement("input");
+    inp.type="text"; inp.value=editing.images[ix].name||"";
+    inp.style.cssText="font:inherit;font-size:12px;padding:3px 8px;border:1px solid var(--accent);border-radius:6px;outline:none;min-width:150px;";
+    span.replaceWith(inp); inp.focus(); inp.select();
+    let done=false;
+    const commit=ok=>{ if(done) return; done=true;
+      if (ok && inp.value.trim()) editing.images[ix].name=inp.value.trim();
+      renderPhotos(); };
+    inp.addEventListener("keydown", ev=>{ ev.stopPropagation();
+      if(ev.key==="Enter"){ ev.preventDefault(); commit(true); }
+      else if(ev.key==="Escape"){ ev.preventDefault(); commit(false); } });
+    inp.addEventListener("blur", ()=>commit(true));
+  };
+  $("mPhotos").querySelectorAll(".a-name").forEach(sp=>sp.onclick=()=>startAudioRename(+sp.dataset.aname));
+  $("mPhotos").querySelectorAll("[data-ren]").forEach(b=>b.onclick=()=>startAudioRename(+b.dataset.ren));
+  if (window.__renameNewVoice){ window.__renameNewVoice=false;
+    const ix=editing.images.map(isAudio).lastIndexOf(true);
+    if (ix>=0) setTimeout(()=>startAudioRename(ix), 60);
+  }
   $("phAdd").onclick=()=>$("phFile").click();
 }
 async function addFiles(files){
@@ -2734,7 +2760,7 @@ async function startRec(){
     if (!blob.size || !editing) return;
     const d=new Date();
     const name = "Voice note "+d.toLocaleDateString([],{day:"numeric",month:"short"})+" "+d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}).replace(":",".")+"."+ext;
-    addFiles([new File([blob], name, {type})]);
+    addFiles([new File([blob], name, {type})]).then(()=>{ window.__renameNewVoice=true; renderPhotos(); });
   };
   recRec.start(); recT0=Date.now();
   const b=$("recBtn"); b.classList.add("rec-on"); b.textContent=recLabel();
