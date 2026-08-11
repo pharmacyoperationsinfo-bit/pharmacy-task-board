@@ -1181,9 +1181,9 @@ function docIcon(d){ const n=(d.name||"").toLowerCase();
   if(/\.(zip|rar|7z)$/.test(n)) return "📦"; return "📄"; }
 function vDocsPanel(e){
   const inFolder = currentDocFolder;
-  const myFolders = !inFolder ? docFolders.filter(f=>f.employee_id===e.id) : [];
+  const myFolders = docFolders.filter(f=>f.employee_id===e.id && fParent(f.name)===inFolder);
   const myDocs = docs.filter(d=>d.employee_id===e.id && (d.folder||"")===inFolder);
-  const fCnt = f => docs.filter(d=>d.employee_id===e.id && (d.folder||"")===f.name).length;
+  const fCnt = f => docs.filter(d=>d.employee_id===e.id && fInside(d.folder||"", f.name)).length;
   const docType = d => { const n=(d.name||"").toLowerCase(); const m=n.match(/\.([a-z0-9]+)$/);
     return m ? m[1].toUpperCase()+" file" : (d.type||"File"); };
   selDocs = new Set([...selDocs].filter(id=>myDocs.some(d=>d.id===id)));
@@ -1194,7 +1194,7 @@ function vDocsPanel(e){
     const folderRows = myFolders.map(f=>`<tr data-open-folder="${esc(f.name)}">
         <td style="width:24px;"></td>
         <td style="width:30px;font-size:18px;">📁</td>
-        <td><span class="doc-name" style="cursor:pointer;">${esc(f.name)}</span></td>
+        <td><span class="doc-name" style="cursor:pointer;">${esc(fLabel(f.name))}</span></td>
         <td style="color:var(--muted);">Folder</td>
         <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${fCnt(f)} file${fCnt(f)===1?"":"s"}</td>
         <td style="color:var(--muted);font-variant-numeric:tabular-nums;">${f.created_at?fmtWhen(f.created_at):"—"}</td>
@@ -1217,7 +1217,7 @@ function vDocsPanel(e){
       body = `<table class="grid doc-table"><thead><tr><th></th><th></th><th>Name</th><th>Type</th><th>Size</th><th>Uploaded</th><th>By</th><th></th></tr></thead><tbody>${folderRows}${fileRows}</tbody></table>`;
   } else {
     const folderCards = myFolders.map(f=>
-      `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(f.name)}</div><div class="df-cnt">${fCnt(f)} file${fCnt(f)===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`).join("");
+      `<div class="doc-folder" data-open-folder="${esc(f.name)}">📁<div class="df-name">${esc(fLabel(f.name))}</div><div class="df-cnt">${fCnt(f)} file${fCnt(f)===1?"":"s"}</div><button class="rm" data-del-folder="${f.id}" title="Delete folder">×</button></div>`).join("");
     const fileTiles = myDocs.map(d=>`<div class="doc-tile ${selDocs.has(d.id)?'selected':''}" data-doc-ctx="${d.id}">
         <span class="dt-sel">${selBox(d)}</span>
         <a class="dt-link" href="${esc(docUrl(d))}" target="_blank" rel="noopener" title="${esc(d.name)} — click to view / print">
@@ -1237,8 +1237,8 @@ function vDocsPanel(e){
     <div class="ne-toolbar">
       <button type="button" id="docsBack">🗒 Notes</button>
       <span class="ne-sep"></span>
-      <span style="font-weight:700;font-size:13px;">📁 ${esc(e.full_name.split(" ")[0])}’s documents${inFolder?` / ${esc(inFolder)}`:""}</span>
-      ${inFolder?`<button type="button" class="btn ghost tiny" id="folderUp" style="margin-left:8px;">⬅ All documents</button>`:""}
+      <span style="font-weight:700;font-size:13px;">📁 ${esc(e.full_name.split(" ")[0])}’s documents${inFolder?` / ${esc(inFolder.split("/").join(" / "))}`:""}</span>
+      ${inFolder?`<button type="button" class="btn ghost tiny" id="folderUp" style="margin-left:8px;">⬅ ${fParent(inFolder)?esc(fLabel(fParent(inFolder))):"All documents"}</button>`:""}
       <div class="spacer"></div>
       <span class="dv-switch">
         <button type="button" data-dv="list" class="${docView==='list'?'on':''}" title="Details list">☰</button>
@@ -1246,7 +1246,7 @@ function vDocsPanel(e){
         <button type="button" data-dv="small" class="${docView==='small'?'on':''}" title="Small icons">▫▫</button>
       </span>
       <span class="ne-sep"></span>
-      ${!inFolder?`<button type="button" id="docNewFolder">＋ New folder</button>`:""}
+      <button type="button" id="docNewFolder">＋ New folder</button>
       <button type="button" id="docUploadBtn">⬆ Upload files</button>
     </div>
     ${myDocs.length?`<div class="sel-row">
@@ -1300,6 +1300,36 @@ function startRename(type, id, current){
   inp.value=current||""; inp.placeholder="New name — press Enter…";
   inp.focus(); inp.select();
 }
+/* Nested folders: folder "name" holds the full path, e.g. "Church View Document/Contracts" */
+const fLabel = p => (p||"").split("/").pop();
+const fParent = p => { const i=(p||"").lastIndexOf("/"); return i<0 ? "" : p.slice(0,i); };
+const fInside = (p, anc) => p===anc || (p||"").startsWith(anc+"/");
+async function moveFolder(f, dest){
+  const newPath = (dest ? dest+"/" : "") + fLabel(f.name);
+  if (newPath===f.name) return;
+  if (docFolders.some(g=>g.employee_id===profileEmp && g.id!==f.id && g.name===newPath)){
+    toast("A folder called “"+fLabel(f.name)+"” already exists there"); return; }
+  try{
+    const old=f.name;
+    await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"PATCH", body:JSON.stringify({name:newPath})});
+    for (const g of docFolders.filter(g=>g.employee_id===profileEmp && g.id!==f.id && fInside(g.name, old)))
+      await api(`/tb_doc_folders?id=eq.${g.id}`, {method:"PATCH", body:JSON.stringify({name:newPath+g.name.slice(old.length)})});
+    for (const d of docs.filter(d=>d.employee_id===profileEmp && fInside(d.folder||"", old)))
+      await api(`/tb_docs?id=eq.${d.id}`, {method:"PATCH", body:JSON.stringify({folder:newPath+(d.folder||"").slice(old.length)})});
+    await logActivity("folder moved", null, old+" → "+(dest||"top level"));
+    if (fInside(currentDocFolder, old)) currentDocFolder = newPath + currentDocFolder.slice(old.length);
+    toast("Folder moved");
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t move folder"); }
+}
+function showFolderToFolderMenu(f, x, y){
+  const dests=[];
+  if (fParent(f.name)!=="") dests.push({label:"🏠 All documents (top level)", fn:()=>moveFolder(f,"")});
+  docFolders.filter(g=>g.employee_id===profileEmp && !fInside(g.name, f.name) && g.name!==fParent(f.name)).forEach(g=>
+    dests.push({label:"📁 "+esc(g.name.split("/").join(" / ")), fn:()=>moveFolder(f, g.name)}));
+  if (!dests.length){ toast("No other folder to move into — create one first"); return; }
+  showCtx(x, y, dests);
+}
 async function moveDoc(d, dest){
   try{
     await api(`/tb_docs?id=eq.${d.id}`, {method:"PATCH", body:JSON.stringify({folder:dest})});
@@ -1313,7 +1343,7 @@ function showFolderMoveMenu(f, x, y){
   if (!cnt){ toast("“"+f.name+"” has no files to move"); return; }
   const dests=[{label:"🏠 All documents (top level)", fn:()=>moveFolderContents(f,"")}];
   docFolders.filter(g=>g.employee_id===profileEmp && g.name!==f.name).forEach(g=>
-    dests.push({label:"📁 "+esc(g.name), fn:()=>moveFolderContents(f, g.name)}));
+    dests.push({label:"📁 "+esc(g.name.split("/").join(" / ")), fn:()=>moveFolderContents(f, g.name)}));
   showCtx(x, y, dests);
 }
 async function moveFolderContents(f, dest){
@@ -1339,7 +1369,7 @@ function showBulkMoveMenu(x, y){
   const dests=[];
   if (cur!=="") dests.push({label:"🏠 All documents (top level)", fn:()=>bulkMove("")});
   docFolders.filter(g=>g.employee_id===profileEmp && g.name!==cur).forEach(g=>
-    dests.push({label:"📁 "+esc(g.name), fn:()=>bulkMove(g.name)}));
+    dests.push({label:"📁 "+esc(g.name.split("/").join(" / ")), fn:()=>bulkMove(g.name)}));
   if (!dests.length){ toast("No other folder to move to — create one first"); return; }
   showCtx(x, y, dests);
 }
@@ -1361,7 +1391,7 @@ function showMoveMenu(d, x, y){
   const dests=[];
   if ((d.folder||"")!=="") dests.push({label:"🏠 All documents (top level)", fn:()=>moveDoc(d,"")});
   docFolders.filter(f=>f.employee_id===profileEmp && f.name!==(d.folder||"")).forEach(f=>
-    dests.push({label:"📁 "+esc(f.name), fn:()=>moveDoc(d, f.name)}));
+    dests.push({label:"📁 "+esc(f.name.split("/").join(" / ")), fn:()=>moveDoc(d, f.name)}));
   if (!dests.length){ toast("No other folder to move to — create one first"); return; }
   showCtx(x, y, dests);
 }
@@ -1404,7 +1434,7 @@ function wireDocs(c){
   const back=c.querySelector("#docsBack"); if(back) back.onclick=()=>{ profileTab="notes"; render(); };
   const area=c.querySelector("#docsArea");
   if(!area) return;
-  const up=c.querySelector("#folderUp"); if(up) up.onclick=()=>{ currentDocFolder=""; render(); };
+  const up=c.querySelector("#folderUp"); if(up) up.onclick=()=>{ currentDocFolder=fParent(currentDocFolder); render(); };
   c.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{ docView=b.dataset.dv; render(); });
   c.querySelectorAll(".doc-sel").forEach(cb=>{
     cb.onclick = ev => ev.stopPropagation();
@@ -1433,11 +1463,13 @@ function wireDocs(c){
       if(!f) return;
       showCtx(ev.clientX, ev.clientY, [
         {label:"📂 Open", fn:()=>{ currentDocFolder=name; render(); }},
-        {label:"✏️ Rename", fn:()=>startRename("folder", f.id, f.name)},
+        {label:"✏️ Rename", fn:()=>startRename("folder", f.id, fLabel(f.name))},
+        {label:"📁 Move folder to…", fn:()=>setTimeout(()=>showFolderToFolderMenu(f, ev.clientX, ev.clientY), 0)},
         {label:"📂 Move all files to…", fn:()=>setTimeout(()=>showFolderMoveMenu(f, ev.clientX, ev.clientY), 0)},
         {label:"🗑 Delete folder", danger:true, fn:async()=>{
-          const cnt=docs.filter(d=>d.employee_id===profileEmp && (d.folder||"")===name).length;
+          const cnt=docs.filter(d=>d.employee_id===profileEmp && fInside(d.folder||"", name)).length;
           if(cnt){ toast("Folder isn’t empty — move or delete its files first"); return; }
+          if(docFolders.some(g=>g.employee_id===profileEmp && g.id!==f.id && fInside(g.name, name))){ toast("Folder has folders inside — move or delete them first"); return; }
           try{ await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"DELETE"});
             await logActivity("folder deleted", null, name); await loadAll(true);
           }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete folder"); }
@@ -1478,10 +1510,16 @@ function wireDocs(c){
         if (renameTarget && renameTarget.type==="folder"){
           const f=docFolders.find(x=>x.id===renameTarget.id);
           if (f){
-            await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"PATCH", body:JSON.stringify({name:val})});
-            await api(`/tb_docs?employee_id=eq.${profileEmp}&folder=eq.${encodeURIComponent(f.name)}`, {method:"PATCH", body:JSON.stringify({folder:val})});
-            await logActivity("folder renamed", null, f.name+" → "+val);
-            if (currentDocFolder===f.name) currentDocFolder=val;
+            const clean = val.replace(/\//g,"-");
+            const old = f.name;
+            const np = (fParent(old) ? fParent(old)+"/" : "") + clean;
+            await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"PATCH", body:JSON.stringify({name:np})});
+            for (const g of docFolders.filter(g=>g.employee_id===profileEmp && g.id!==f.id && fInside(g.name, old)))
+              await api(`/tb_doc_folders?id=eq.${g.id}`, {method:"PATCH", body:JSON.stringify({name:np+g.name.slice(old.length)})});
+            for (const d of docs.filter(d=>d.employee_id===profileEmp && fInside(d.folder||"", old)))
+              await api(`/tb_docs?id=eq.${d.id}`, {method:"PATCH", body:JSON.stringify({folder:np+(d.folder||"").slice(old.length)})});
+            await logActivity("folder renamed", null, old+" → "+np);
+            if (fInside(currentDocFolder, old)) currentDocFolder = np + currentDocFolder.slice(old.length);
           }
         } else if (renameTarget && renameTarget.type==="doc"){
           const d=docs.find(x=>x.id===renameTarget.id);
@@ -1490,9 +1528,14 @@ function wireDocs(c){
             await logActivity("document renamed", null, d.name+" → "+val);
           }
         } else {
-          await api("/tb_doc_folders", {method:"POST", body:JSON.stringify({employee_id:profileEmp, name:val})});
-          await logActivity("folder created", null, val+" ("+empName(profileEmp)+")");
-          toast("Folder “"+val+"” created");
+          const clean = val.replace(/\//g,"-");
+          const full = (currentDocFolder ? currentDocFolder+"/" : "") + clean;
+          if (docFolders.some(x=>x.employee_id===profileEmp && x.name===full)){ toast("That folder already exists here"); }
+          else {
+            await api("/tb_doc_folders", {method:"POST", body:JSON.stringify({employee_id:profileEmp, name:full})});
+            await logActivity("folder created", null, full+" ("+empName(profileEmp)+")");
+            toast("Folder “"+clean+"” created"+(currentDocFolder?" inside "+fLabel(currentDocFolder):""));
+          }
         }
         renameTarget=null;
         await loadAll(true);
@@ -1500,8 +1543,9 @@ function wireDocs(c){
     }});
   c.querySelectorAll("[data-del-folder]").forEach(b=>b.onclick=async ev=>{ ev.stopPropagation();
     const f=docFolders.find(x=>x.id===b.dataset.delFolder); if(!f) return;
-    const cnt=docs.filter(d=>d.employee_id===profileEmp && (d.folder||"")===f.name).length;
+    const cnt=docs.filter(d=>d.employee_id===profileEmp && fInside(d.folder||"", f.name)).length;
     if(cnt){ toast("Folder isn’t empty — delete its files first"); return; }
+    if(docFolders.some(g=>g.employee_id===profileEmp && g.id!==f.id && fInside(g.name, f.name))){ toast("Folder has folders inside — move or delete them first"); return; }
     if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.style.color="var(--red)"; toast("Click × again to delete the folder"); return; }
     try{ await api(`/tb_doc_folders?id=eq.${f.id}`, {method:"DELETE"}); await loadAll(true);
     }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete folder"); }});
