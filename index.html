@@ -1036,6 +1036,8 @@ function render(){
     const el = sel==="#content" ? c : document.querySelector(sel);
     if (el && top) el.scrollTop = top;
   });
+  if (document.body.classList.contains("tasks-full")){ const el=document.querySelector(".np-tasks"); if (el) el.style.animation="none"; }
+  if (document.body.classList.contains("np-full")){ const el=document.querySelector(".np-panel"); if (el) el.style.animation="none"; }
 }
 
 /* ---- Card ---- */
@@ -1479,7 +1481,8 @@ function wireDocs(c){
   if (nfb){
     const label=()=>{ const on=document.body.classList.contains("np-full");
       nfb.textContent = on ? "⇤ Slide back" : "⤢ Full screen"; nfb.classList.toggle("fmt-on", on); };
-    nfb.onclick=()=>{ document.body.classList.toggle("np-full"); label(); };
+    nfb.onclick=()=>{ const el=document.querySelector(".np-panel"); if (el) el.style.animation="";
+      document.body.classList.toggle("np-full"); label(); };
     label();
   }
   const back=c.querySelector("#docsBack"); if(back) back.onclick=()=>{ profileTab="notes"; render(); };
@@ -1759,7 +1762,8 @@ function wire(c){
   if (tfb){
     const tlabel=()=>{ const on=document.body.classList.contains("tasks-full");
       tfb.textContent = on ? "⇤ Back" : "⤢ Full screen"; };
-    tfb.onclick=()=>{ document.body.classList.remove("np-full"); document.body.classList.toggle("tasks-full"); tlabel(); };
+    tfb.onclick=()=>{ const el=document.querySelector(".np-tasks"); if (el) el.style.animation="";
+      document.body.classList.remove("np-full"); document.body.classList.toggle("tasks-full"); tlabel(); };
     tlabel();
   }
   c.querySelectorAll(".card").forEach(el=>{
@@ -2533,6 +2537,37 @@ function flipRender(){
     });
   });
 }
+function wireCard(el){
+  el.onclick=ev=>{ if(ev.target.dataset.lb || ev.target.dataset.done || ev.target.dataset.work) return; openTask(el.dataset.id); };
+  el.ondragstart=ev=>{ ev.dataTransfer.setData("text/plain", el.dataset.id); ev.dataTransfer.effectAllowed="move"; };
+  el.querySelectorAll("img[data-lb]").forEach(img=>img.onclick=ev=>{ ev.stopPropagation(); showLightbox(img.src); });
+  el.querySelectorAll("[data-done]").forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); toggleDone(b.dataset.done); });
+  el.querySelectorAll("[data-work]").forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); toggleWorking(b.dataset.work); });
+  el.querySelectorAll("[data-pin]").forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); togglePin(b.dataset.pin); });
+}
+function refreshRenderCache(){
+  try{
+    window.__lastRenderHtml = view==="profile" ? vProfile()
+      : view==="dashboard" ? vDashboard() : view==="board" ? vBoard() : view==="quadrant" ? vQuadrant()
+      : view==="list" ? vList() : view==="routines" ? vRoutines() : view==="settings" ? vSettings() : vActivity();
+  }catch(_){}
+}
+/* Update an edited task's card in place — no page redraw. Only when it stays in the same spot. */
+function surgicalTaskSave(beforeSnap, t){
+  if (beforeSnap.status !== t.status || !!beforeSnap.pinned !== !!t.pinned
+      || (beforeSnap.due_date||"") !== (t.due_date||"") || (beforeSnap.due_time||"") !== (t.due_time||"")) return false;
+  const els = [...document.querySelectorAll(`.card[data-id="${t.id}"]`)];
+  if (!els.length) return false;
+  els.forEach(el=>{
+    const hideOwner = !!el.closest(".np-tasks");
+    const tmp = document.createElement("div");
+    tmp.innerHTML = cardHTML(t, {hideOwner});
+    const nu = tmp.firstElementChild;
+    el.replaceWith(nu); wireCard(nu);
+  });
+  refreshRenderCache();
+  return true;
+}
 /* Surgical pin move: slide the ONE card within the existing DOM — nothing re-renders */
 function insertCardByDue(group, card, t){
   const sibs = [...group.querySelectorAll(".card[data-id]")].filter(el=>el!==card);
@@ -3069,6 +3104,7 @@ $("mSave").onclick=async ()=>{
         await api(`/tb_tasks?id=eq.${editing.id}`, {method:"PATCH", body:JSON.stringify(payload)});
         await logActivity("completed ✓ (repeats "+payload.recurrence+")", {id:editing.id,title}, "next deadline "+fmtDate(payload.due_date));
         toast(`Done ✓ — rescheduled for ${fmtDate(payload.due_date)}`);
+        Object.assign(before, payload);
       } else {
         if (nowGreen) payload.completed_at=new Date().toISOString();
         if (payload.status!=="green") payload.completed_at=null;
@@ -3082,18 +3118,24 @@ $("mSave").onclick=async ()=>{
         if ((before.quadrant||null)!==(payload.quadrant||null)) changes.push("quadrant → "+(payload.quadrant?QUADS[payload.quadrant].label:"untriaged"));
         await logActivity("updated", {id:editing.id,title}, changes.join(", "));
         toast("Task saved");
+        const beforeSnap = {status:before.status, pinned:before.pinned, due_date:before.due_date, due_time:before.due_time};
+        Object.assign(before, payload);
+        window.__savedSurgical = surgicalTaskSave(beforeSnap, before);
       }
     } else {
       payload.id = editing.id;
       if (payload.status==="green") payload.completed_at=new Date().toISOString();
       const rows = await api("/tb_tasks", {method:"POST", body:JSON.stringify(payload)});
       const nt = rows && rows[0];
+      if (nt) tasks.unshift(nt);
       await logActivity("created", nt||{id:editing.id,title},
         (payload.employee_id? "assigned to "+empName(payload.employee_id) : "unassigned")+" · "+STATUSES[payload.status==="green"?"green":payload.status].meaning+(payload.due_date?" · deadline "+fmtDate(payload.due_date):""));
       toast("Task created");
     }
     closeTask(true);
-    await loadAll(true);
+    if (window.__savedSurgical){ window.__savedSurgical = false; }
+    else flipRender();
+    loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
 };
 $("mDelete").onclick=async ()=>{
