@@ -2755,6 +2755,9 @@ function sanitizeHtml(html){
       } else if (el.style.background){ el.style.removeProperty("background"); }
       if(!el.getAttribute("style")) el.removeAttribute("style"); }
     if (el.tagName==="FONT"){ el.removeAttribute("size"); el.removeAttribute("face"); }
+    // kill presentational attributes email clients love (grey signature tiles etc.)
+    ["bgcolor","background","color","border","cellpadding","cellspacing","align","valign"].forEach(a=>el.removeAttribute(a));
+    if (el.tagName!=="IMG"){ el.removeAttribute("width"); el.removeAttribute("height"); }
   });
   // a checklist row must hold ONE checkbox + its own text; free any lines trapped inside it
   div.querySelectorAll(".nchk").forEach(chk=>{
@@ -2768,6 +2771,40 @@ function sanitizeHtml(html){
   });
   return div.innerHTML;
 }
+/* Standardise pasted content like Apple Notes: our font, our background —
+   keep bold / italic / underline / strikethrough, links, lists, headings,
+   checklists and our own highlight colours; drop everything else. */
+function cleanPaste(html){
+  const div=document.createElement("div"); div.innerHTML=sanitizeHtml(html);
+  div.querySelectorAll("*").forEach(el=>{
+    if (!el.style) return;
+    const keep={};
+    const fw=el.style.fontWeight; if(fw==="bold"||parseInt(fw)>=600) keep["font-weight"]="700";
+    if(el.style.fontStyle==="italic") keep["font-style"]="italic";
+    const td=(el.style.textDecoration||el.style.textDecorationLine||"");
+    if(/underline/.test(td)) keep["text-decoration"]="underline";
+    else if(/line-through/.test(td)) keep["text-decoration"]="line-through";
+    const bg=(el.style.backgroundColor||"").trim();
+    const inline=/^(SPAN|FONT|B|I|U|S|STRONG|EM|A|MARK)$/.test(el.tagName);
+    if(bg && inline && (Object.values(HL_RGB).includes(bg)||Object.keys(HL_RGB).includes(bg.toLowerCase())))
+      keep["background-color"]=bg;
+    el.removeAttribute("style");
+    Object.entries(keep).forEach(([k,v])=>el.style.setProperty(k,v));
+    if(!el.getAttribute("style")) el.removeAttribute("style");
+  });
+  return div.innerHTML;
+}
+/* Pasting formatted text (emails, web pages, Word…) into any rich box → standardised */
+document.addEventListener("paste", e=>{
+  const t=document.activeElement;
+  if (!t || !t.classList || !t.classList.contains("rich-target")) return;
+  const cd=e.clipboardData; if(!cd) return;
+  if ([...(cd.files||[])].length) return;              // file pastes handled elsewhere
+  const html=cd.getData("text/html"); if(!html) return; // plain text pastes are already clean
+  e.preventDefault();
+  document.execCommand("insertHTML", false, cleanPaste(html));
+  if (typeof richAutosave==="function" && t.id!=="mDesc") richAutosave(t);
+});
 function setNotes(desc){
   const el=$("mDesc");
   if (!desc){ el.innerHTML=""; return; }
