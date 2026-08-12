@@ -168,6 +168,7 @@
   .ph-item.audio .rm{position:static; margin:0; width:22px; height:22px; visibility:visible;}
   .ph-item.audio .a-ren{margin-left:auto;}
   .c-thumbs{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;}
+  .c-stamp{font-size:10.5px; color:var(--muted); margin-top:6px;}
   .c-thumbs img{width:34px; height:34px; object-fit:cover; border-radius:5px; border:1px solid var(--line);}
 
   /* ---------- Board / columns ---------- */
@@ -1114,6 +1115,7 @@ function cardHTML(t, opts){
       ${imgs.filter(p=>!isImg(p)&&!isAudio(p)).length?`<span class="badge">📎 ${imgs.filter(p=>!isImg(p)&&!isAudio(p)).length}</span>`:""}
     </div>
     ${imgs.filter(isImg).length?`<div class="c-thumbs">${imgs.filter(isImg).slice(0,5).map((p,ix)=>`<img src="${esc(photoUrl(p))}" data-lb="${t.id}:${ix}" alt="photo" loading="lazy">`).join("")}${imgs.filter(isImg).length>5?`<span class="badge">+${imgs.filter(isImg).length-5}</span>`:""}</div>`:""}
+    ${t.updated_at?`<div class="c-stamp">Edited ${fmtWhen(t.updated_at)}${t.touched_by?" · "+esc(t.touched_by.split(" ")[0]):""}</div>`:""}
   </div>`;
 }
 
