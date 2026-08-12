@@ -364,6 +364,11 @@
     overflow-y:auto; height:calc(100vh - 190px); font-size:12.5px;}
   .np-tasks .card{margin-bottom:6px;}
   .np-tasks .pg-head{padding:6px 2px 6px;}
+  .task-search{width:100%; box-sizing:border-box; margin:2px 0 8px; padding:6px 10px; border:1px solid var(--line);
+    border-radius:8px; font:inherit; font-size:12.5px; background:var(--surface); color:var(--ink);}
+  .task-search:focus{outline:none; border-color:var(--accent);}
+  body.tasks-full .np-tasks .task-search{grid-column:1/-1; max-width:420px; font-size:13.5px; padding:8px 12px;}
+  .search-none{grid-column:1/-1; color:var(--muted); font-size:12.5px; padding:10px 4px;}
   @media (max-width:900px){ .np-wrap{flex-direction:column;} .np-canvas,.np-tasks{height:auto; min-height:340px;}
     .np-tasks{border-left:none; border-top:1px solid var(--line); margin-left:0; padding-left:0; flex-basis:auto !important; display:block !important;}
     .np-divider{display:none;} }
@@ -822,7 +827,7 @@ const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","
 
 /* ================= State ================= */
 let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], doneNotes = [], notepads = [], docs = [], docFolders = [];
-let profileTab = "notes", currentDocFolder = "", docView = "list", taskTab = "adhoc";
+let profileTab = "notes", currentDocFolder = "", docView = "list", taskTab = "adhoc", taskSearch = "";
 let selDocs = new Set();
 let focusNotepad = false;
 let view = "dashboard";
@@ -1006,7 +1011,7 @@ function renderNav(){
 }
 function render(){
   // don't wipe the page while someone is typing a sticky note or dragging one (background sync keeps running)
-  if (noteDragging || (document.activeElement && ((document.activeElement.closest && document.activeElement.closest(".sn-body, .np-body")) || document.activeElement.id==="newFolderName"))) return;
+  if (noteDragging || (document.activeElement && ((document.activeElement.closest && document.activeElement.closest(".sn-body, .np-body")) || document.activeElement.id==="newFolderName" || document.activeElement.id==="npTaskSearch"))) return;
   document.body.classList.toggle("profile-mode", view==="profile");
   if (view!=="profile"){ document.body.classList.remove("np-full"); document.body.classList.remove("tasks-full"); }
   renderNav();
@@ -1044,6 +1049,41 @@ function render(){
 }
 
 /* ---- Card ---- */
+/* ---- Task search: everything on a tile is findable ---- */
+function taskSearchBlob(t){
+  const e = empById(t.employee_id);
+  const div = document.createElement("div"); div.innerHTML = t.description||"";
+  return [
+    t.title||"",
+    div.textContent||"",
+    (Array.isArray(t.checklist)?t.checklist:[]).map(i=>i.text||"").join(" "),
+    t.site||"",
+    e ? e.full_name : "",
+    (Array.isArray(t.images)?t.images:[]).map(p=>p.name||"").join(" "),
+    (Array.isArray(t.links)?t.links:[]).map(l=>(l.title||"")+" "+(l.url||"")).join(" "),
+    t.outcome||"", t.waiting_on||""
+  ].join(" ").toLowerCase();
+}
+function applyTaskSearch(){
+  const wrap = document.getElementById("npTasks"); if (!wrap) return;
+  const q = (taskSearch||"").trim().toLowerCase();
+  let shown = 0;
+  wrap.querySelectorAll(".card").forEach(c=>{
+    const t = tasks.find(x=>x.id===c.dataset.id);
+    const hit = !q || (t && taskSearchBlob(t).includes(q));
+    c.style.display = hit ? "" : "none";
+    if (hit) shown++;
+  });
+  wrap.querySelectorAll(".p-group").forEach(g=>{
+    const any = [...g.querySelectorAll(".card")].some(c=>c.style.display!=="none");
+    g.style.display = (any || !q) ? "" : "none";
+  });
+  let none = wrap.querySelector(".search-none");
+  if (q && shown===0){
+    if (!none){ none=document.createElement("div"); none.className="search-none"; wrap.appendChild(none); }
+    none.textContent = `No tasks match “${taskSearch.trim()}”`;
+  } else if (none) none.remove();
+}
 function cardHTML(t, opts){
   opts = opts||{};
   const u = urgency(t);
@@ -1216,6 +1256,7 @@ function vProfile(){
           <div class="rs-head" style="padding:2px 0 6px;display:flex;align-items:center;">Tasks · ${open.length} open
             <button class="btn ghost tiny" id="tasksFullBtn" style="margin-left:auto;padding:1px 8px;" title="Show tasks full screen as tiles"></button>
             <button class="btn ghost tiny" data-add-emp-task="${e.id}" style="margin-left:6px;padding:1px 8px;">＋</button></div>
+          <input type="search" class="task-search" id="npTaskSearch" placeholder="🔍 Search tasks — title, notes, checklist, site, person, voice notes…" value="${esc(taskSearch)}">
           <div class="tt-tabs">
             <button type="button" data-tt="adhoc" class="${taskTab==='adhoc'?'on':''}">Ad hoc (${open.filter(t=>!isReg(t)).length})</button>
             <button type="button" data-tt="regular" class="${taskTab==='regular'?'on':''}">↻ Regular (${open.filter(isReg).length})</button>
@@ -1768,6 +1809,12 @@ function wire(c){
     tfb.onclick=()=>{ const el=document.querySelector(".np-tasks"); if (el) el.style.animation="";
       document.body.classList.remove("np-full"); document.body.classList.toggle("tasks-full"); tlabel(); };
     tlabel();
+  }
+  const tsi=c.querySelector("#npTaskSearch");
+  if (tsi){
+    tsi.oninput=()=>{ taskSearch=tsi.value; applyTaskSearch(); };
+    tsi.onkeydown=e=>{ if(e.key==="Escape" && tsi.value){ e.stopPropagation(); tsi.value=""; taskSearch=""; applyTaskSearch(); } };
+    if (taskSearch) applyTaskSearch();
   }
   c.querySelectorAll(".card").forEach(el=>{
     el.onclick=ev=>{ if(ev.target.dataset.lb || ev.target.dataset.done || ev.target.dataset.work) return; openTask(el.dataset.id); };
