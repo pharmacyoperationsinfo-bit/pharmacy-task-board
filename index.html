@@ -130,6 +130,20 @@
     border:1.5px solid var(--line); color:var(--muted); font-size:12px; display:flex; align-items:center; justify-content:center; background:var(--surface);}
   .card .c-done:hover{border-color:var(--green); color:var(--green-ink); background:var(--green-bg);}
   .card.done .c-done{border-color:var(--green); background:var(--green); color:#fff;}
+  .card .c-pin{position:absolute; top:8px; right:60px; width:22px; height:22px; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:11px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:0; transition:opacity .12s;}
+  .card:hover .c-pin{opacity:1;}
+  .card .c-pin:hover{border-color:var(--amber); color:var(--amber-ink);}
+  .card .c-pin.on{opacity:1; background:var(--amber-bg); border-color:var(--amber); color:var(--amber-ink);}
+  body.tasks-full .np-tasks{position:fixed !important; inset:0; z-index:150; background:var(--surface);
+    display:block !important; flex:none !important; width:auto; height:auto !important; max-height:none !important;
+    margin:0; border:none; padding:16px 30px 40px; overflow:auto; animation:npSlideIn .28s ease; font-size:13px;}
+  body.tasks-full .np-tasks .p-group{display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:10px; margin-bottom:20px; align-items:start;}
+  body.tasks-full .np-tasks .pg-head{grid-column:1/-1; font-size:14px;}
+  body.tasks-full .np-tasks .card{margin-bottom:0;}
+  body.tasks-full .np-tasks .rs-head{font-size:15px; padding:6px 0 10px;}
+  body.tasks-full .np-tasks .tt-tabs{max-width:420px;}
   .card .c-work{position:absolute; top:8px; right:34px; width:22px; height:22px; border-radius:50%;
     border:1.5px solid var(--line); color:var(--muted); font-size:11px; display:flex; align-items:center; justify-content:center; background:var(--surface);}
   .card .c-work:hover{border-color:var(--accent); color:var(--accent); background:#eef4fc;}
@@ -976,7 +990,7 @@ function render(){
   // don't wipe the page while someone is typing a sticky note or dragging one (background sync keeps running)
   if (noteDragging || (document.activeElement && ((document.activeElement.closest && document.activeElement.closest(".sn-body, .np-body")) || document.activeElement.id==="newFolderName"))) return;
   document.body.classList.toggle("profile-mode", view==="profile");
-  if (view!=="profile") document.body.classList.remove("np-full");
+  if (view!=="profile"){ document.body.classList.remove("np-full"); document.body.classList.remove("tasks-full"); }
   renderNav();
   const c = $("content");
   if (view==="profile"){
@@ -1005,6 +1019,7 @@ function cardHTML(t, opts){
   const done = cl.filter(i=>i.done).length;
   const imgs = Array.isArray(t.images)? t.images : [];
   return `<div class="card ${u}${t.status==='green'?' done':''}" draggable="true" data-id="${t.id}">
+    ${t.status!=='green'?`<button class="c-pin ${t.pinned?'on':''}" data-pin="${t.id}" title="${t.pinned?'Unpin':'Pin to top'}">📌</button>`:''}
     ${t.status!=='green'?`<button class="c-work ${t.working?'on':''}" data-work="${t.id}" title="${t.working?'Working on it — click to pause':'I’m working on this'}">⚙</button>`:''}
     <button class="c-done" data-done="${t.id}" title="${t.status==='green'?'Reopen':'Mark completed'}">✓</button>
     <div class="c-title">${esc(t.title)}</div>
@@ -1076,8 +1091,12 @@ function vProfile(){
   const openTab = open.filter(t=> taskTab==="regular" ? isReg(t) : !isReg(t));
   const completed = mine.filter(t=>t.status==="green" && (taskTab==="regular" ? isReg(t) : !isReg(t)))
     .sort((a,b)=>(a.completed_at||"")<(b.completed_at||"")?1:-1).slice(0,10);
+  const pinnedTab = openTab.filter(t=>t.pinned).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
+  const pinnedGroup = pinnedTab.length ? `<div class="p-group"><div class="pg-head" style="color:var(--amber-ink)">📌
+      <span style="color:var(--ink)">Pinned</span>
+      <span style="color:var(--muted);font-weight:500;">${pinnedTab.length}</span></div>${pinnedTab.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>` : "";
   const group = k => {
-    const g = openTab.filter(t=>urgency(t)===k).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
+    const g = openTab.filter(t=>urgency(t)===k && !t.pinned).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
     if (!g.length) return "";
     return `<div class="p-group"><div class="pg-head" style="color:${STATUSES[k].color}">${statusDot(k)}
       <span style="color:var(--ink)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span>
@@ -1162,12 +1181,13 @@ function vProfile(){
                 <button class="btn ghost tiny" data-rt-done="${r.id}" style="margin-left:6px;padding:1px 6px;">✓</button></div>`;}).join("")}
             <div style="border-top:1px solid var(--line);margin:8px 0;"></div>`:""}
           <div class="rs-head" style="padding:2px 0 6px;display:flex;align-items:center;">Tasks · ${open.length} open
-            <button class="btn ghost tiny" data-add-emp-task="${e.id}" style="margin-left:auto;padding:1px 8px;">＋</button></div>
+            <button class="btn ghost tiny" id="tasksFullBtn" style="margin-left:auto;padding:1px 8px;" title="Show tasks full screen as tiles"></button>
+            <button class="btn ghost tiny" data-add-emp-task="${e.id}" style="margin-left:6px;padding:1px 8px;">＋</button></div>
           <div class="tt-tabs">
             <button type="button" data-tt="adhoc" class="${taskTab==='adhoc'?'on':''}">Ad hoc (${open.filter(t=>!isReg(t)).length})</button>
             <button type="button" data-tt="regular" class="${taskTab==='regular'?'on':''}">↻ Regular (${open.filter(isReg).length})</button>
           </div>
-          ${openTab.length ? ORDER.slice(0,3).map(group).join("") : `<div class="empty" style="padding:14px 4px;">No open ${taskTab==="regular"?"regular (repeating)":"ad hoc"} tasks</div>`}
+          ${pinnedGroup}${openTab.length ? ORDER.slice(0,3).map(group).join("") : `<div class="empty" style="padding:14px 4px;">No open ${taskTab==="regular"?"regular (repeating)":"ad hoc"} tasks</div>`}
           ${completed.length?`<div class="p-group"><div class="pg-head" style="color:var(--green)">${statusDot("green")}
             <span style="color:var(--ink)">Completed</span></div>${completed.slice(0,5).map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}
         </div>
@@ -1578,7 +1598,7 @@ function wireDocs(c){
 function vBoard(){
   const ft = filteredTasks();
   return `<div class="board">` + ORDER.map(k => {
-    const col = ft.filter(t=>urgency(t)===k).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
+    const col = ft.filter(t=>urgency(t)===k).sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0)) || (dueKey(a)<dueKey(b)?-1:1));
     return `<div class="col" data-col="${k}">
       <div class="col-head" style="color:${STATUSES[k].color}">${statusDot(k)}<span style="color:var(--ink)">${STATUSES[k].label}</span>
         <span class="cmeaning">${STATUSES[k].meaning}</span><span class="cnt">${col.length}</span></div>
@@ -1706,6 +1726,14 @@ function wire(c){
   c.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openTask(el.dataset.open));
   c.querySelectorAll("[data-done]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleDone(el.dataset.done); });
   c.querySelectorAll("[data-work]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleWorking(el.dataset.work); });
+  c.querySelectorAll("[data-pin]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); togglePin(el.dataset.pin); });
+  const tfb=c.querySelector("#tasksFullBtn");
+  if (tfb){
+    const tlabel=()=>{ const on=document.body.classList.contains("tasks-full");
+      tfb.textContent = on ? "⇤ Back" : "⤢ Full screen"; };
+    tfb.onclick=()=>{ document.body.classList.remove("np-full"); document.body.classList.toggle("tasks-full"); tlabel(); };
+    tlabel();
+  }
   c.querySelectorAll(".card").forEach(el=>{
     el.onclick=ev=>{ if(ev.target.dataset.lb || ev.target.dataset.done || ev.target.dataset.work) return; openTask(el.dataset.id); };
     el.ondragstart=ev=>{ ev.dataTransfer.setData("text/plain", el.dataset.id); ev.dataTransfer.effectAllowed="move"; };
@@ -2459,6 +2487,17 @@ async function reopenTask(id){
     await loadAll(true);
   } catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
 }
+async function togglePin(id){
+  const t = tasks.find(x=>x.id===id);
+  if (!t) return;
+  const now = !t.pinned;
+  try{
+    await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({pinned: now}))});
+    await logActivity(now ? "pinned 📌" : "unpinned", t, meName());
+    toast(now ? "Pinned to top 📌" : "Unpinned");
+    await loadAll(true);
+  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }
+}
 async function toggleWorking(id){
   const t = tasks.find(x=>x.id===id);
   if (!t || t.status==="green") return;
@@ -3069,6 +3108,12 @@ $("btnExport").onclick=()=>{
   toast("CSV downloaded");
 };
 document.addEventListener("keydown", e=>{
+  if (e.key==="Escape" && document.body.classList.contains("tasks-full")
+      && !$("neOverlay").classList.contains("open") && !$("taskPanel").classList.contains("open")){
+    document.body.classList.remove("tasks-full");
+    const b=document.getElementById("tasksFullBtn"); if(b) b.textContent="⤢ Full screen";
+    return;
+  }
   if (e.key==="Escape" && document.body.classList.contains("np-full")
       && !$("neOverlay").classList.contains("open") && !$("taskPanel").classList.contains("open")){
     document.body.classList.remove("np-full");
