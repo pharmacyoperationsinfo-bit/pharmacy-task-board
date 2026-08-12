@@ -618,7 +618,7 @@
       <div class="spacer"></div>
       <button class="btn ghost" id="btnPrint" title="Print this view">Print</button>
       <button class="btn ghost" id="btnExport" title="Download all tasks as CSV">Export</button>
-      <button class="btn primary" id="btnNew">+ New task</button>
+      <button class="btn primary" id="btnNew" title="New task — press N (or Cmd/Ctrl+Option+N)">+ New task</button>
     </div>
     <div class="content" id="content"></div>
   </div>
@@ -3391,6 +3391,21 @@ function renderDoneNotes(empId){
 }
 $("dnClose").onclick=()=>$("dnOverlay").classList.remove("open");
 $("dnOverlay").addEventListener("click", e=>{ if(e.target.id==="dnOverlay") $("dnOverlay").classList.remove("open"); });
+
+/* ---- New-task shortcut: press N (when not typing), or Cmd/Ctrl+Option+N anywhere ---- */
+document.addEventListener("keydown", e=>{
+  const t = document.activeElement;
+  const typing = t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.tagName==="SELECT" || t.isContentEditable);
+  const anyOpen = ["taskPanel","neOverlay","unsavedOverlay","rtOverlay","empOverlay","dnOverlay"]
+    .some(id=>{ const el=$(id); return el && el.classList.contains("open"); });
+  const newTask = ()=>openTask(null, view==="profile" && profileEmp ? {employee_id:profileEmp} : null);
+  if ((e.metaKey||e.ctrlKey) && e.altKey && e.code==="KeyN"){
+    e.preventDefault(); if (!anyOpen) newTask(); return;
+  }
+  if (!typing && !anyOpen && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key==="n" || e.key==="N")){
+    e.preventDefault(); newTask();
+  }
+});
 
 /* ---- Mobile drawer ---- */
 function isPhone(){ return matchMedia("(max-width:820px)").matches; }
