@@ -346,6 +346,8 @@
   @keyframes npSlideIn{from{transform:translateX(100%);}to{transform:none;}}
   body.np-full .np-canvas, body.np-full .np-tasks{height:calc(100vh - 96px);}
   body.np-full .np-body{min-height:calc(100vh - 120px);}
+  /* full-screen home page = the note only, no task tiles */
+  body.np-full .np-tasks, body.np-full .np-divider{display:none;}
   #npFullBtn.fmt-on{background:var(--ink); color:#fff; border-radius:6px;}
   body.profile-mode .notes-scroll{height:70vh;}
   .np-panel{margin-bottom:10px; padding:0 14px 4px;}
