@@ -704,6 +704,17 @@
 </div>
 
 <!-- Routine modal -->
+<div class="overlay" id="unsavedOverlay" style="z-index:400;">
+  <div class="modal" style="width:410px;">
+    <h3 style="margin:0 0 6px;">⚠ You haven’t saved</h3>
+    <p style="font-size:13px;color:var(--ink-2);margin:0 0 16px;">This task has unsaved changes — closing now will lose them. Do you wish to continue?</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn ghost" id="usKeep">↩ Keep editing</button>
+      <button class="btn danger" id="usDiscard">Discard changes</button>
+      <button class="btn primary" id="usSave">💾 Save task</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="dnOverlay">
   <div class="modal" style="width:700px;">
     <h3 style="margin:0 0 2px;">✓ Completed sticky notes — <span id="dnWho"></span></h3>
@@ -851,7 +862,11 @@ async function loadAll(silent) {
       api("/tb_docs?select=*&order=created_at.desc"),
       api("/tb_doc_folders?select=*&order=name.asc")
     ]);
+    const dataSig = JSON.stringify([e, t, r, s, n, dn, np, dc, df]) + (view==="activity" ? JSON.stringify(a) : "");
+    const unchanged = silent && dataSig === window.__lastDataSig;
+    window.__lastDataSig = dataSig;
     allStaff = e; tasks = t; routines = r; activity = a; notes = n; doneNotes = dn; notepads = np; docs = dc; docFolders = df;
+    if (unchanged){ setOnline(true); return; }
     const st = (s||[]).find(x=>x.key==="sites");
     sites = st && Array.isArray(st.value) ? st.value : [];
     const tm = (s||[]).find(x=>x.key==="team");
@@ -993,20 +1008,25 @@ function render(){
   if (view!=="profile"){ document.body.classList.remove("np-full"); document.body.classList.remove("tasks-full"); }
   renderNav();
   const c = $("content");
+  let html;
   if (view==="profile"){
     const e = empById(profileEmp);
     $("viewTitle").textContent = e ? e.full_name : "Profile";
-    c.innerHTML = vProfile();
+    html = vProfile();
   } else {
     $("viewTitle").textContent = (VIEWS.find(v=>v.id===view)||{}).label || "";
-    if (view==="dashboard") c.innerHTML = vDashboard();
-    else if (view==="board") c.innerHTML = vBoard();
-    else if (view==="quadrant") c.innerHTML = vQuadrant();
-    else if (view==="list") c.innerHTML = vList();
-    else if (view==="routines") c.innerHTML = vRoutines();
-    else if (view==="settings") c.innerHTML = vSettings();
-    else c.innerHTML = vActivity();
+    if (view==="dashboard") html = vDashboard();
+    else if (view==="board") html = vBoard();
+    else if (view==="quadrant") html = vQuadrant();
+    else if (view==="list") html = vList();
+    else if (view==="routines") html = vRoutines();
+    else if (view==="settings") html = vSettings();
+    else html = vActivity();
   }
+  // identical output → leave the DOM (and its handlers) untouched: no flicker
+  if (html === window.__lastRenderHtml && c.childNodes.length) return;
+  window.__lastRenderHtml = html;
+  c.innerHTML = html;
   wire(c);
 }
 
@@ -2491,12 +2511,11 @@ async function togglePin(id){
   const t = tasks.find(x=>x.id===id);
   if (!t) return;
   const now = !t.pinned;
+  t.pinned = now; render();               // instant, Apple-Notes feel
   try{
     await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({pinned: now}))});
-    await logActivity(now ? "pinned 📌" : "unpinned", t, meName());
-    toast(now ? "Pinned to top 📌" : "Unpinned");
-    await loadAll(true);
-  }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save"); }
+    logActivity(now ? "pinned 📌" : "unpinned", t, meName());
+  }catch(e){ console.error(e); t.pinned = !now; render(); setOnline(false); toast("Couldn’t save"); }
 }
 async function toggleWorking(id){
   const t = tasks.find(x=>x.id===id);
@@ -2663,9 +2682,34 @@ function openTask(id, preset){
   $("mMeta").textContent = t? ("Created "+fmtWhen(t.created_at)+(t.touched_by?` · last touched by ${t.touched_by}`:"")) : "New task";
   renderUrgencyPreview(); renderChecklist(); renderPhotos();
   $("taskPanel").classList.add("open");
+  taskOpenSig = taskSig();
   $("mTitle").focus();
 }
-function closeTask(){ if (typeof stopRec==="function") stopRec(); $("taskPanel").classList.remove("open"); editing=null; }
+let taskOpenSig = "";
+function taskSig(){
+  if (!editing) return "";
+  try{
+    return JSON.stringify({ t:$("mTitle").value, d:$("mDesc").innerHTML, due:$("mDue").value, dt:$("mDueTime").value,
+      rec:$("mRec").value, e:$("mEmp").value, s:$("mSite").value, o:$("mOutcome").value,
+      st:editing.status, w:!!editing.working, q:editing.quadrant||null,
+      cl:JSON.stringify(editing.checklist||[]), im:(editing.images||[]).length, lk:(editing.links||[]).length });
+  }catch(_){ return ""; }
+}
+function closeTask(force){
+  if (force !== true && editing && $("taskPanel").classList.contains("open") && taskSig() !== taskOpenSig){
+    $("unsavedOverlay").classList.add("open");
+    return;
+  }
+  if (typeof stopRec==="function") stopRec();
+  $("unsavedOverlay").classList.remove("open");
+  $("taskPanel").classList.remove("open"); editing=null;
+}
+$("usKeep").onclick=()=>$("unsavedOverlay").classList.remove("open");
+$("usDiscard").onclick=()=>closeTask(true);
+$("usSave").onclick=()=>{ $("unsavedOverlay").classList.remove("open"); $("mSave").click(); };
+window.addEventListener("beforeunload", e=>{
+  if (editing && $("taskPanel").classList.contains("open") && taskSig() !== taskOpenSig){ e.preventDefault(); e.returnValue=""; }
+});
 function renderUrgencyPreview(){
   if (!editing) return;
   const cur = editing.status==="green" ? (editing._bucket||"") : editing.status;
@@ -2913,9 +2957,9 @@ $("mDesc").addEventListener("paste", ()=>setTimeout(harvestLinks, 50));
 function showLightbox(src){ $("lightboxImg").src=src; $("lightbox").classList.add("open"); }
 $("lightbox").onclick=()=>$("lightbox").classList.remove("open");
 
-$("mCancel").onclick=closeTask;
-$("mClose").onclick=closeTask;
-$("taskScrim").onclick=closeTask;
+$("mCancel").onclick=()=>closeTask();
+$("mClose").onclick=()=>closeTask();
+$("taskScrim").onclick=()=>closeTask();
 $("mSave").onclick=async ()=>{
   harvestLinks();
   const title=$("mTitle").value.trim();
@@ -2963,7 +3007,7 @@ $("mSave").onclick=async ()=>{
         (payload.employee_id? "assigned to "+empName(payload.employee_id) : "unassigned")+" · "+STATUSES[payload.status==="green"?"green":payload.status].meaning+(payload.due_date?" · deadline "+fmtDate(payload.due_date):""));
       toast("Task created");
     }
-    closeTask();
+    closeTask(true);
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
 };
