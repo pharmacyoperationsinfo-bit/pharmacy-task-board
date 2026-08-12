@@ -1815,7 +1815,9 @@ function wire(c){
     const tlabel=()=>{ const on=document.body.classList.contains("tasks-full");
       tfb.textContent = on ? "⇤ Back" : "⤢ Full screen"; };
     tfb.onclick=()=>{ const el=document.querySelector(".np-tasks"); if (el) el.style.animation="";
-      document.body.classList.remove("np-full"); document.body.classList.toggle("tasks-full"); tlabel(); };
+      document.body.classList.remove("np-full"); document.body.classList.toggle("tasks-full"); tlabel();
+      if (document.body.classList.contains("tasks-full")){
+        const s=$("npTaskSearch"); if (s){ s.focus(); s.select(); } } };
     tlabel();
   }
   const tsi=c.querySelector("#npTaskSearch");
