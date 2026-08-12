@@ -630,7 +630,7 @@
       <div class="spacer"></div>
       <button class="btn ghost" id="btnPrint" title="Print this view">Print</button>
       <button class="btn ghost" id="btnExport" title="Download all tasks as CSV">Export</button>
-      <button class="btn primary" id="btnNew" title="New task — Option+N (or press N when not typing)">+ New task</button>
+      <button class="btn primary" id="btnNew" title="New task — Ctrl+N (or press N when not typing)">+ New task</button>
     </div>
     <div class="content" id="content"></div>
   </div>
@@ -3486,15 +3486,16 @@ function renderDoneNotes(empId){
 $("dnClose").onclick=()=>$("dnOverlay").classList.remove("open");
 $("dnOverlay").addEventListener("click", e=>{ if(e.target.id==="dnOverlay") $("dnOverlay").classList.remove("open"); });
 
-/* ---- Shortcuts: Option+N new task · Option+H notepad full screen · Option+T tasks full screen
-        (plus plain N when not typing) — Esc gets you back out of everything ---- */
+/* ---- Shortcuts: Ctrl+N new task · Ctrl+H notepad full screen · Ctrl+T tasks full screen
+        (plus plain N when not typing) — Esc gets you back out of everything.
+        Ctrl (not Option) because Option+letter types accent characters (˜) on macOS. ---- */
 document.addEventListener("keydown", e=>{
   const t = document.activeElement;
   const typing = t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.tagName==="SELECT" || t.isContentEditable);
   const anyOpen = ["taskPanel","neOverlay","unsavedOverlay","rtOverlay","empOverlay","dnOverlay"]
     .some(id=>{ const el=$(id); return el && el.classList.contains("open"); });
   const newTask = ()=>openTask(null, view==="profile" && profileEmp ? {employee_id:profileEmp} : null);
-  if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey){
+  if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey){
     if (e.code==="KeyN"){ e.preventDefault(); if (!anyOpen) newTask(); return; }
     if (e.code==="KeyH"){ e.preventDefault(); if (!anyOpen){ const b=$("npFullBtn"); if (b) b.click(); } return; }
     if (e.code==="KeyT"){ e.preventDefault(); if (!anyOpen){ const b=$("tasksFullBtn"); if (b) b.click(); } return; }
