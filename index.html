@@ -240,7 +240,7 @@
   .act-row .a-actor{color:var(--muted);}
 
   /* ---------- Side panel editor ---------- */
-  .panel-wrap{position:fixed; inset:0; z-index:50; display:none;}
+  .panel-wrap{position:fixed; inset:0; z-index:300; display:none;}
   .panel-wrap.open{display:block;}
   .panel-scrim{position:absolute; inset:0; background:rgba(11,11,11,0.25);}
   .side-panel{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:min(1020px, 96vw); height:min(92vh, 860px);
@@ -325,12 +325,12 @@
   .dn-actions button:hover{background:#fff;}
   .dn-actions button.danger{color:#a02020;}
   .overlay{position:fixed; inset:0; background:rgba(11,11,11,0.35); display:none; align-items:flex-start;
-    justify-content:center; padding:8vh 16px; z-index:60; overflow:auto;}
+    justify-content:center; padding:8vh 16px; z-index:310; overflow:auto;}
   .overlay.open{display:flex;}
   .modal{background:var(--surface); border-radius:12px; width:430px; max-width:100%; box-shadow:0 12px 40px rgba(11,11,11,0.25); padding:20px 22px 18px;}
   .modal h3{font-size:15px; font-weight:700; margin-bottom:13px;}
   .m-foot{display:flex; align-items:center; gap:8px; margin-top:15px;}
-  .lightbox{position:fixed; inset:0; background:rgba(11,11,11,0.82); z-index:80; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
+  .lightbox{position:fixed; inset:0; background:rgba(11,11,11,0.82); z-index:330; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
   .lightbox.open{display:flex;}
   .lightbox img{max-width:92vw; max-height:92vh; border-radius:8px;}
 
@@ -487,7 +487,7 @@
   .site-tag button:hover{color:var(--red);}
 
   .empty{color:var(--muted); text-align:center; padding:36px 10px; font-size:13.5px;}
-  .ctx-menu{position:fixed; z-index:130; background:var(--surface); border:1px solid var(--line); border-radius:9px;
+  .ctx-menu{position:fixed; z-index:340; background:var(--surface); border:1px solid var(--line); border-radius:9px;
     box-shadow:0 8px 28px rgba(11,11,11,.18); padding:4px; display:none; min-width:170px;}
   .ctx-menu.open{display:block;}
   .ctx-menu button{display:block; width:100%; text-align:left; padding:7px 12px; border-radius:6px; font-size:13px; color:var(--ink-2);}
@@ -495,7 +495,7 @@
   .ctx-menu button.danger{color:var(--red-ink);}
   .ctx-menu button.danger:hover{background:var(--red-bg);}
   .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
-    padding:9px 16px; border-radius:8px; font-size:13px; z-index:99; opacity:0; transition:opacity .2s; pointer-events:none;}
+    padding:9px 16px; border-radius:8px; font-size:13px; z-index:350; opacity:0; transition:opacity .2s; pointer-events:none;}
   .toast.show{opacity:1;}
 
   /* ---------- Mobile ---------- */
@@ -2762,7 +2762,9 @@ function openTask(id, preset){
   setNotes(editing.description||"");
   $("mOutcome").value = editing.outcome||"";
   $("mDelete").style.display = t? "" : "none";
-  $("mMeta").textContent = t? ("Created "+fmtWhen(t.created_at)+(t.touched_by?` · last touched by ${t.touched_by}`:"")) : "New task";
+  $("mMeta").textContent = t
+    ? ("Edited "+fmtWhen(t.updated_at||t.created_at)+(t.touched_by?` by ${t.touched_by}`:"")+" · Created "+fmtWhen(t.created_at))
+    : "New task · "+fmtWhen(new Date().toISOString());
   renderUrgencyPreview(); renderChecklist(); renderPhotos();
   $("taskPanel").classList.add("open");
   taskOpenSig = taskSig();
