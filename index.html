@@ -324,6 +324,7 @@
     background:rgba(255,255,255,.6); cursor:pointer;}
   .dn-actions button:hover{background:#fff;}
   .dn-actions button.danger{color:#a02020;}
+  #unsavedOverlay .btn:focus{outline:2px dashed var(--ink); outline-offset:3px;}
   .overlay{position:fixed; inset:0; background:rgba(11,11,11,0.35); display:none; align-items:flex-start;
     justify-content:center; padding:8vh 16px; z-index:310; overflow:auto;}
   .overlay.open{display:flex;}
@@ -2818,12 +2819,25 @@ function taskSig(){
 function closeTask(force){
   if (force !== true && editing && $("taskPanel").classList.contains("open") && taskSig() !== taskOpenSig){
     $("unsavedOverlay").classList.add("open");
+    setTimeout(()=>{ const b=$("usSave"); if (b) b.focus(); }, 0);
     return;
   }
   if (typeof stopRec==="function") stopRec();
   $("unsavedOverlay").classList.remove("open");
   $("taskPanel").classList.remove("open"); editing=null;
 }
+$("unsavedOverlay").addEventListener("keydown", e=>{
+  const order=[$("usKeep"), $("usDiscard"), $("usSave")];
+  if (e.key==="Tab"){
+    e.preventDefault();
+    const i = order.indexOf(document.activeElement);
+    const n = e.shiftKey ? (i<=0 ? order.length-1 : i-1) : (i<0 || i===order.length-1 ? 0 : i+1);
+    order[n].focus();
+  } else if (e.key==="Escape"){
+    e.preventDefault(); e.stopPropagation();
+    $("unsavedOverlay").classList.remove("open");
+  }
+});
 $("usKeep").onclick=()=>$("unsavedOverlay").classList.remove("open");
 $("usDiscard").onclick=()=>closeTask(true);
 $("usSave").onclick=()=>{ $("unsavedOverlay").classList.remove("open"); $("mSave").click(); };
