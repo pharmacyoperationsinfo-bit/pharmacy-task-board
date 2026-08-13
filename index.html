@@ -3403,7 +3403,19 @@ document.addEventListener("keydown", e=>{
   }
   if (e.key==="Escape"){
     if ($("neOverlay").classList.contains("open")){ closeNoteEditor(); return; }
+    const anyOpen = ["taskPanel","neOverlay","unsavedOverlay","rtOverlay","empOverlay","dnOverlay"]
+      .some(id=>{ const el=$(id); return el && el.classList.contains("open"); })
+      || $("lightbox").classList.contains("open");
     closeTask(); $("empOverlay").classList.remove("open"); $("rtOverlay").classList.remove("open"); $("lightbox").classList.remove("open");
+    // On an employee's Documents page with nothing open: Esc steps back —
+    // out of the folder first, then back to their notes home page
+    const t = document.activeElement;
+    const typing = t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.isContentEditable);
+    if (!anyOpen && !typing && view==="profile" && profileTab==="docs"){
+      if (currentDocFolder){ currentDocFolder = fParent(currentDocFolder); }
+      else { profileTab = "notes"; }
+      render();
+    }
   }
 });
 
