@@ -1154,7 +1154,7 @@ function vDashboard(){
     const cells = ORDER.map(k=>{const n=mine.filter(t=>urgency(t)===k).length;
       return `<td class="count-cell" style="color:${n? STATUSES[k].color:'var(--muted)'}">${n}</td>`;}).join("");
     return `<tr data-goto-emp="${e.id}"><td><span class="who"><span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)} <span class="role">${esc(e.role||"")}</span></span></td>
-      ${cells}<td class="count-cell">${mine.filter(t=>t.status!=="green").length}</td></tr>`;
+      ${cells}<td class="count-cell">${mine.filter(t=>t.status!=="green").length}</td><td class="count-cell" style="font-weight:700;">${mine.length}</td></tr>`;
   }).join("");
   const unassigned = ft.filter(t=>!t.employee_id && t.status!=="green").length;
   const noDeadline = ft.filter(t=>!t.due_date && t.status!=="green").length;
@@ -1210,8 +1210,8 @@ function vDashboard(){
         <span class="rt-actions"><button class="btn ghost tiny" data-rt-done="${r.id}">✓ Done today</button></span></div>`;}).join("")}</div>`:""}
     ${doneTodayPanel}
     <div class="panel"><h2>Workload by employee</h2>
-      <table class="grid"><thead><tr><th>Employee</th>${ORDER.map(k=>`<th>${STATUSES[k].meaning}</th>`).join("")}<th>Open</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="6"><div class="empty">No tasks yet — use the quick-add bar above to create your first.</div></td></tr>`}</tbody></table></div>
+      <table class="grid"><thead><tr><th>Employee</th>${ORDER.map(k=>`<th>${STATUSES[k].meaning}</th>`).join("")}<th>Open</th><th>Total assigned</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="7"><div class="empty">No tasks yet — use the quick-add bar above to create your first.</div></td></tr>`}</tbody></table></div>
     ${(unassigned||noDeadline)?`<div class="panel"><h2>Heads up</h2><div style="padding:12px 16px;font-size:13px;color:var(--ink-2)">
       ${unassigned?`${unassigned} open task${unassigned===1?"":"s"} unassigned. `:""}
       ${noDeadline?`${noDeadline} open task${noDeadline===1?"":"s"} missing a deadline — every task needs one.`:""}</div></div>`:""}`;
