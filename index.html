@@ -2625,6 +2625,19 @@ async function saveSites(what){
 }
 
 /* ================= Mutations ================= */
+/* Completing a repeating task reschedules the live one, but we also keep a
+   green RECORD of today's completion so it shows in Completed (and Completed today). */
+async function logRegularDone(t){
+  try{
+    await api("/tb_tasks", {method:"POST", body: JSON.stringify({
+      title: t.title, description: t.description||"", employee_id: t.employee_id||null,
+      site: t.site||null, quadrant: t.quadrant||null, status: "green",
+      completed_at: new Date().toISOString(), recurrence: t.recurrence||"none",
+      due_date: t.due_date||null, checklist: Array.isArray(t.checklist)?t.checklist:[],
+      links: t.links||[], images: [], outcome: t.outcome||"", working: false,
+      urgency_override: null, touched_by: meName(), updated_at: new Date().toISOString() })});
+  }catch(e){ console.error("record of repeating completion failed", e); }
+}
 async function completeTask(id){
   const t = tasks.find(x=>x.id===id);
   if (!t || t.status==="green") return;
@@ -2632,6 +2645,7 @@ async function completeTask(id){
     if (t.recurrence && t.recurrence!=="none") {
       const nd = nextDue(t.due_date, t.recurrence);
       const cl = (Array.isArray(t.checklist)?t.checklist:[]).map(i=>({...i, done:false}));
+      await logRegularDone(t);
       await api(`/tb_tasks?id=eq.${id}`, {method:"PATCH", body: JSON.stringify(stamp({
         status: t.status==="red" ? "red" : "yellow", due_date: nd, checklist: cl, completed_at: null, working: false }))});
       await logActivity("completed ✓ (repeats "+t.recurrence+")", t, "next deadline "+fmtDate(nd));
@@ -3281,7 +3295,8 @@ $("mSave").onclick=async ()=>{
       const before = tasks.find(x=>x.id===editing.id) || {};
       const nowGreen = payload.status==="green" && before.status!=="green";
       if (nowGreen && payload.recurrence!=="none"){
-        // completing a repeating task from the editor: reschedule it
+        // completing a repeating task from the editor: keep a green record, then reschedule it
+        await logRegularDone({...before, ...payload});
         payload.status = before.status==="red" ? "red" : "yellow"; payload.completed_at=null;
         payload.due_date = nextDue(payload.due_date, payload.recurrence);
         payload.checklist = payload.checklist.map(i=>({...i, done:false}));
