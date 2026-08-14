@@ -169,6 +169,20 @@
   .ph-item.audio .a-ren{margin-left:auto;}
   .c-thumbs{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;}
   .c-stamp{font-size:10.5px; color:var(--muted); margin-top:6px;}
+  /* Completed-today panel */
+  .dt-row{display:flex; align-items:flex-start; gap:10px; padding:7px 0; border-bottom:1px solid var(--line);}
+  .dt-row:last-child{border-bottom:none;}
+  .dt-row .who{font-size:13px; font-weight:600; align-items:center;}
+  .dt-count{display:inline-block; margin-left:6px; background:var(--green); color:#fff; border-radius:999px;
+    font-size:11px; font-weight:700; padding:1px 8px;}
+  .dt-tasks{display:flex; flex-wrap:wrap; gap:6px; flex:1; min-width:0;}
+  .dt-chip{border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:3px 11px;
+    font-size:12px; color:var(--ink-2); max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .dt-chip:hover{border-color:var(--green); color:var(--ink); background:#f1faf3;}
+  .dt-filter{margin-left:auto; display:flex; gap:4px; flex-wrap:wrap; font-weight:500;}
+  .dt-filter button{border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:2px 10px;
+    font-size:11.5px; color:var(--muted); white-space:nowrap;}
+  .dt-filter button.on{background:var(--ink); border-color:var(--ink); color:#fff; font-weight:700;}
   .c-thumbs img{width:34px; height:34px; object-fit:cover; border-radius:5px; border:1px solid var(--line);}
 
   /* ---------- Board / columns ---------- */
@@ -368,6 +382,7 @@
   .np-tasks .pg-head{padding:6px 2px 6px;}
   .ts-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:2px 0 8px;}
   .ts-row .tt-tabs{margin-bottom:0; flex:0 0 auto;}
+  .st-dot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:1px;}
   .task-search{flex:1 1 150px; min-width:130px; box-sizing:border-box; padding:6px 10px; border:1px solid var(--line);
     border-radius:8px; font:inherit; font-size:12.5px; background:var(--surface); color:var(--ink);}
   .task-search:focus{outline:none; border-color:var(--accent);}
@@ -832,7 +847,7 @@ const AV_COLORS = ["#2a78d6","#eb6834","#1baf7a","#4a3aa7","#e87ba4","#0ca30c","
 
 /* ================= State ================= */
 let employees = [], allStaff = [], teamIds = [], tasks = [], routines = [], activity = [], sites = [], notes = [], doneNotes = [], notepads = [], docs = [], docFolders = [];
-let profileTab = "notes", currentDocFolder = "", docView = "list", taskTab = "adhoc", taskSearch = "";
+let profileTab = "notes", currentDocFolder = "", docView = "list", taskTab = "adhoc", taskSearch = "", taskStatusTab = "all", dtFilter = "all";
 let selDocs = new Set();
 let focusNotepad = false;
 let view = "dashboard";
@@ -1139,6 +1154,30 @@ function vDashboard(){
   }).join("");
   const unassigned = ft.filter(t=>!t.employee_id && t.status!=="green").length;
   const noDeadline = ft.filter(t=>!t.due_date && t.status!=="green").length;
+  /* Completed TODAY, per member */
+  const isToday = iso => { if(!iso) return false; const d=new Date(iso), n=new Date();
+    return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate(); };
+  const doneToday = ft.filter(t=>t.status==="green" && isToday(t.completed_at||t.updated_at));
+  const dtWho = employees.filter(e=>doneToday.some(t=>t.employee_id===e.id));
+  if (dtFilter!=="all" && !dtWho.some(e=>e.id===dtFilter)) dtFilter="all";
+  const dtRows = employees.map(e=>{
+    if (dtFilter!=="all" && e.id!==dtFilter) return "";
+    const mine = doneToday.filter(t=>t.employee_id===e.id);
+    if (!mine.length) return "";
+    return `<div class="dt-row"><span class="who" data-goto-emp="${e.id}" style="cursor:pointer;min-width:170px;">
+        <span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}
+        <span class="dt-count">${mine.length}</span></span>
+      <span class="dt-tasks">${mine.map(t=>`<button type="button" class="dt-chip" data-open-task="${t.id}" title="Completed ${fmtWhen(t.completed_at||t.updated_at)}">✓ ${esc(t.title)}</button>`).join("")}</span></div>`;
+  }).join("");
+  const dtUnassigned = doneToday.filter(t=>!t.employee_id);
+  const doneTodayPanel = `<div class="panel"><h2>✅ Completed today
+      <span class="h-sub">${doneToday.length ? doneToday.length+" task"+(doneToday.length===1?"":"s")+" finished so far today" : "resets every midnight"}</span>
+      ${dtWho.length>1?`<span class="dt-filter"><button type="button" data-dtf="all" class="${dtFilter==='all'?'on':''}">All</button>
+        ${dtWho.map(e=>`<button type="button" data-dtf="${e.id}" class="${dtFilter===e.id?'on':''}">${esc(e.full_name.split(" ")[0])} (${doneToday.filter(t=>t.employee_id===e.id).length})</button>`).join("")}</span>`:""}</h2>
+    ${doneToday.length ? `<div style="padding:8px 16px 12px;">${dtRows}
+      ${dtUnassigned.length && dtFilter==="all"?`<div class="dt-row"><span class="who" style="min-width:170px;color:var(--muted)">Unassigned <span class="dt-count">${dtUnassigned.length}</span></span>
+        <span class="dt-tasks">${dtUnassigned.map(t=>`<button type="button" class="dt-chip" data-open-task="${t.id}">✓ ${esc(t.title)}</button>`).join("")}</span></div>`:""}</div>`
+      : `<div class="empty" style="padding:14px 16px;">Nothing marked completed yet today.</div>`}</div>`;
   return `
     <div class="tiles">${tiles}
       <div class="tile" data-goto-view="routines"><div class="t-head"><span>↻</span><span style="color:var(--ink-2)">Regular cadence</span></div>
@@ -1151,6 +1190,7 @@ function vDashboard(){
         <span class="rt-last">${r.last_done?("last done "+fmtDate(r.last_done)):"never done"}</span>
         <span class="who">${e?`<span class="avatar" style="background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name)}`:""}</span>
         <span class="rt-actions"><button class="btn ghost tiny" data-rt-done="${r.id}">✓ Done today</button></span></div>`;}).join("")}</div>`:""}
+    ${doneTodayPanel}
     <div class="panel"><h2>Workload by employee</h2>
       <table class="grid"><thead><tr><th>Employee</th>${ORDER.map(k=>`<th>${STATUSES[k].meaning}</th>`).join("")}<th>Open</th></tr></thead>
       <tbody>${rows || `<tr><td colspan="6"><div class="empty">No tasks yet — use the quick-add bar above to create your first.</div></td></tr>`}</tbody></table></div>
@@ -1168,9 +1208,11 @@ function vProfile(){
   const open = mine.filter(t=>t.status!=="green");
   const isReg = t => t.recurrence && t.recurrence!=="none";
   const openTab = open.filter(t=> taskTab==="regular" ? isReg(t) : !isReg(t));
-  const completed = mine.filter(t=>t.status==="green" && (taskTab==="regular" ? isReg(t) : !isReg(t)))
-    .sort((a,b)=>(a.completed_at||"")<(b.completed_at||"")?1:-1).slice(0,10);
-  const pinnedTab = openTab.filter(t=>t.pinned).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
+  const stT = taskStatusTab || "all";
+  const completedAll = mine.filter(t=>t.status==="green" && (taskTab==="regular" ? isReg(t) : !isReg(t)))
+    .sort((a,b)=>(a.completed_at||"")<(b.completed_at||"")?1:-1);
+  const completed = completedAll.slice(0, stT==="green" ? 60 : 10);
+  const pinnedTab = openTab.filter(t=>t.pinned && (stT==="all" || urgency(t)===stT)).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
   const pinnedGroup = pinnedTab.length ? `<div class="p-group"><div class="pg-head" style="color:var(--amber-ink)">📌
       <span style="color:var(--ink)">Pinned</span>
       <span style="color:var(--muted);font-weight:500;">${pinnedTab.length}</span></div>${pinnedTab.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>` : "";
@@ -1264,14 +1306,25 @@ function vProfile(){
             <button class="btn ghost tiny" data-add-emp-task="${e.id}" style="margin-left:6px;padding:1px 8px;">＋</button></div>
           <div class="ts-row">
           <input type="search" class="task-search" id="npTaskSearch" placeholder="🔍 Search tasks — title, notes, checklist, site, person, voice notes…" value="${esc(taskSearch)}">
+          <div class="tt-tabs st-tabs">
+            <button type="button" data-st="all" class="${stT==='all'?'on':''}">All</button>
+            <button type="button" data-st="red" class="${stT==='red'?'on':''}"><span class="st-dot" style="background:var(--red)"></span>Priority (${openTab.filter(t=>urgency(t)==='red').length})</button>
+            <button type="button" data-st="yellow" class="${stT==='yellow'?'on':''}"><span class="st-dot" style="background:var(--yellow)"></span>Queue (${openTab.filter(t=>urgency(t)==='yellow').length})</button>
+            <button type="button" data-st="green" class="${stT==='green'?'on':''}"><span class="st-dot" style="background:var(--green)"></span>Completed (${completedAll.length})</button>
+          </div>
           <div class="tt-tabs">
             <button type="button" data-tt="adhoc" class="${taskTab==='adhoc'?'on':''}">Ad hoc (${open.filter(t=>!isReg(t)).length})</button>
             <button type="button" data-tt="regular" class="${taskTab==='regular'?'on':''}">↻ Regular (${open.filter(isReg).length})</button>
           </div>
           </div>
-          ${pinnedGroup}${openTab.length ? ORDER.slice(0,3).map(group).join("") : `<div class="empty" style="padding:14px 4px;">No open ${taskTab==="regular"?"regular (repeating)":"ad hoc"} tasks</div>`}
-          ${completed.length?`<div class="p-group"><div class="pg-head" style="color:var(--green)">${statusDot("green")}
-            <span style="color:var(--ink)">Completed</span></div>${completed.slice(0,5).map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}
+          ${stT==="green" ? "" : pinnedGroup}
+          ${stT==="green" ? "" :
+            ((stT==="all" ? ORDER.slice(0,3).map(group).join("") : group(stT)) ||
+              (pinnedTab.length ? "" : `<div class="empty" style="padding:14px 4px;">No ${stT==="all"?"open":stT==="red"?"Priority":"Queue"} ${taskTab==="regular"?"regular (repeating)":"ad hoc"} tasks</div>`))}
+          ${(stT==="all"||stT==="green") && completed.length?`<div class="p-group"><div class="pg-head" style="color:var(--green)">${statusDot("green")}
+            <span style="color:var(--ink)">Completed</span>
+            <span style="color:var(--muted);font-weight:500;">${completedAll.length}</span></div>${(stT==="green"?completed:completed.slice(0,5)).map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>`:""}
+          ${stT==="green" && !completed.length ? `<div class="empty" style="padding:14px 4px;">No completed ${taskTab==="regular"?"regular":"ad hoc"} tasks yet</div>`:""}
         </div>
       </div>
     </div>`;
@@ -1806,6 +1859,8 @@ function wire(c){
   c.querySelectorAll("[data-goto-status]").forEach(el=>el.onclick=()=>{ $("fStatus").value=el.dataset.gotoStatus; $("fDue").value=""; view="list"; render(); });
   c.querySelectorAll("[data-goto-view]").forEach(el=>el.onclick=()=>{ view=el.dataset.gotoView; render(); });
   c.querySelectorAll("[data-goto-emp]").forEach(el=>el.onclick=()=>{ view="profile"; if(profileEmp!==el.dataset.gotoEmp){ profileTab="notes"; currentDocFolder=""; } profileEmp=el.dataset.gotoEmp; focusNotepad=true; render(); });
+  c.querySelectorAll("[data-open-task]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); openTask(el.dataset.openTask); });
+  c.querySelectorAll("[data-dtf]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); dtFilter=el.dataset.dtf; render(); });
   c.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openTask(el.dataset.open));
   c.querySelectorAll("[data-done]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleDone(el.dataset.done); });
   c.querySelectorAll("[data-work]").forEach(el=>el.onclick=ev=>{ ev.stopPropagation(); toggleWorking(el.dataset.work); });
@@ -1867,6 +1922,7 @@ function wire(c){
   const ns=$("newSite"); if(ns) ns.addEventListener("keydown", async e=>{
     if(e.key==="Enter" && ns.value.trim()){ sites.push(ns.value.trim()); await saveSites("added site "+ns.value.trim()); }});
   c.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{ taskTab=b.dataset.tt; render(); });
+  c.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{ taskStatusTab=b.dataset.st; render(); });
   wireNotes(c);
   wireDocs(c);
 }
