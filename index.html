@@ -1790,6 +1790,7 @@ function vList(){
     if (sortKey==="emp") return empName(a.employee_id).localeCompare(empName(b.employee_id))*dir;
     if (sortKey==="site") return String(a.site||"").localeCompare(String(b.site||""))*dir;
     if (sortKey==="updated") return (a.updated_at<b.updated_at?-1:1)*dir;
+    if (sortKey==="done") return ((a.completed_at||"")<(b.completed_at||"")?-1:1)*dir;
     return (a.title||"").localeCompare(b.title||"")*dir;
   });
   const arrow = k => sortKey===k ? (sortAsc?" ↑":" ↓") : "";
@@ -1806,6 +1807,7 @@ function vList(){
       <td>${t.site?esc(t.site):'<span style="color:var(--muted)">—</span>'}</td>
       <td>${t.due_date?`<span class="badge ${isOverdue(t)?'overdue':isDueToday(t)?'today':''}">${isOverdue(t)?'⚠ ':''}${fmtDate(t.due_date)}${tTime(t)?' '+tTime(t):''}</span>`:''}</td>
       <td>${cl.length?`☑ ${cl.filter(i=>i.done).length}/${cl.length}`:'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${t.status==="green" && (t.completed_at||t.updated_at) ? `<span style="color:var(--green);font-size:12px;font-weight:600;">✓ ${fmtWhen(t.completed_at||t.updated_at)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
       <td style="color:var(--muted);font-size:12px;">${fmtWhen(t.updated_at)}${t.touched_by?` · ${esc(t.touched_by.split(" ")[0])}`:""}</td></tr>`;
   }).join("");
   return `<div class="panel"><table class="grid"><thead><tr>
@@ -1815,8 +1817,9 @@ function vList(){
       <th class="sortable" data-sort="site">Site${arrow("site")}</th>
       <th class="sortable" data-sort="due">Deadline${arrow("due")}</th>
       <th>Checklist</th>
+      <th class="sortable" data-sort="done">Completed${arrow("done")}</th>
       <th class="sortable" data-sort="updated">Last touched${arrow("updated")}</th></tr></thead>
-    <tbody>${rows || `<tr><td colspan="7"><div class="empty">No tasks match — try clearing the search or filters.</div></td></tr>`}</tbody></table></div>`;
+    <tbody>${rows || `<tr><td colspan="8"><div class="empty">No tasks match — try clearing the search or filters.</div></td></tr>`}</tbody></table></div>`;
 }
 
 /* ---- Regular cadence ---- */
