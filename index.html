@@ -1230,12 +1230,13 @@ function vProfile(){
   const completedAll = mine.filter(t=>t.status==="green" && (taskTab==="regular" ? isReg(t) : !isReg(t)))
     .sort((a,b)=>(a.completed_at||"")<(b.completed_at||"")?1:-1);
   const completed = completedAll.slice(0, stT==="green" ? 60 : 10);
-  const pinnedTab = openTab.filter(t=>t.pinned && (stT==="all" || urgency(t)===stT)).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
+  const newestFirst = (a,b)=> (a.created_at||"") > (b.created_at||"") ? -1 : 1;
+  const pinnedTab = openTab.filter(t=>t.pinned && (stT==="all" || urgency(t)===stT)).sort(newestFirst);
   const pinnedGroup = pinnedTab.length ? `<div class="p-group"><div class="pg-head" style="color:var(--amber-ink)">📌
       <span style="color:var(--ink)">Pinned</span>
       <span style="color:var(--muted);font-weight:500;">${pinnedTab.length}</span></div>${pinnedTab.map(t=>cardHTML(t,{hideOwner:true})).join("")}</div>` : "";
   const group = k => {
-    const g = openTab.filter(t=>urgency(t)===k && !t.pinned).sort((a,b)=>dueKey(a)<dueKey(b)?-1:1);
+    const g = openTab.filter(t=>urgency(t)===k && !t.pinned).sort(newestFirst);
     if (!g.length) return "";
     return `<div class="p-group"><div class="pg-head" style="color:${STATUSES[k].color}">${statusDot(k)}
       <span style="color:var(--ink)">${STATUSES[k].label} · ${STATUSES[k].meaning}</span>
@@ -1752,7 +1753,7 @@ function wireDocs(c){
 function vBoard(){
   const ft = filteredTasks();
   return `<div class="board">` + ORDER.map(k => {
-    const col = ft.filter(t=>urgency(t)===k).sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0)) || (dueKey(a)<dueKey(b)?-1:1));
+    const col = ft.filter(t=>urgency(t)===k).sort((a,b)=>((b.pinned?1:0)-(a.pinned?1:0)) || ((a.created_at||"") > (b.created_at||"") ? -1 : 1));
     return `<div class="col" data-col="${k}">
       <div class="col-head" style="color:${STATUSES[k].color}">${statusDot(k)}<span style="color:var(--ink)">${STATUSES[k].label}</span>
         <span class="cmeaning">${STATUSES[k].meaning}</span><span class="cnt">${col.length}</span></div>
@@ -2718,9 +2719,10 @@ function surgicalTaskSave(beforeSnap, t){
 }
 /* Surgical pin move: slide the ONE card within the existing DOM — nothing re-renders */
 function insertCardByDue(group, card, t){
+  // lists run newest-first: slot the card in front of the first OLDER sibling
   const sibs = [...group.querySelectorAll(".card[data-id]")].filter(el=>el!==card);
-  const key = dueKey(t);
-  const nxt = sibs.find(el=>{ const st=tasks.find(x=>x.id===el.dataset.id); return st && dueKey(st) > key; });
+  const key = t.created_at||"";
+  const nxt = sibs.find(el=>{ const st=tasks.find(x=>x.id===el.dataset.id); return st && (st.created_at||"") < key; });
   if (nxt) nxt.before(card); else group.appendChild(card);
 }
 function surgicalPinMove(id){
@@ -3326,7 +3328,7 @@ $("mSave").onclick=async ()=>{
       if (payload.status==="green") payload.completed_at=new Date().toISOString();
       const rows = await api("/tb_tasks", {method:"POST", body:JSON.stringify(payload)});
       const nt = rows && rows[0];
-      if (nt) tasks.unshift(nt);
+      if (nt){ if (!nt.created_at) nt.created_at = new Date().toISOString(); tasks.unshift(nt); }
       await logActivity("created", nt||{id:editing.id,title},
         (payload.employee_id? "assigned to "+empName(payload.employee_id) : "unassigned")+" · "+STATUSES[payload.status==="green"?"green":payload.status].meaning+(payload.due_date?" · deadline "+fmtDate(payload.due_date):""));
       toast("Task created");
