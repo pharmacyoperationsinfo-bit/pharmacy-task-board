@@ -126,7 +126,7 @@
   .card .c-title{font-weight:600; font-size:13.5px; margin-bottom:5px;}
   /* invisible spacer floated top-right: only the FIRST line of the title makes room
      for the pin/work/done buttons — the rest of the text uses the full width */
-  .card .c-btnspace{float:right; width:76px; height:24px;}
+  .card .c-btnspace{float:right; width:76px; height:24px; pointer-events:none;}
   .card.done .c-title{text-decoration:line-through; color:var(--ink-2);}
   .card .c-meta{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11.5px; color:var(--muted);}
   .card .c-done{position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%;
@@ -390,6 +390,13 @@
   .ts-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:2px 0 8px;}
   .ts-row .tt-tabs{margin-bottom:0; flex:0 0 auto;}
   .st-dot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:1px;}
+  /* compact status tabs in the narrow column: dots + P/Q/C — full words in full screen */
+  .st-tabs .st-full{display:none;}
+  .st-tabs .st-mini{display:inline;}
+  .st-tabs button{padding:4px 7px;}
+  body.tasks-full .st-tabs .st-full{display:inline;}
+  body.tasks-full .st-tabs .st-mini{display:none;}
+  body.tasks-full .st-tabs button{padding:4px 10px;}
   .task-search{flex:1 1 150px; min-width:130px; box-sizing:border-box; padding:6px 10px; border:1px solid var(--line);
     border-radius:8px; font:inherit; font-size:12.5px; background:var(--surface); color:var(--ink);}
   .task-search:focus{outline:none; border-color:var(--accent);}
@@ -1331,9 +1338,9 @@ function vProfile(){
           <input type="search" class="task-search" id="npTaskSearch" placeholder="🔍 Search tasks — title, notes, checklist, site, person, voice notes…" value="${esc(taskSearch)}">
           <div class="tt-tabs st-tabs">
             <button type="button" data-st="all" class="${stT==='all'?'on':''}">All</button>
-            <button type="button" data-st="red" class="${stT==='red'?'on':''}"><span class="st-dot" style="background:var(--red)"></span>Priority (${openTab.filter(t=>urgency(t)==='red').length})</button>
-            <button type="button" data-st="yellow" class="${stT==='yellow'?'on':''}"><span class="st-dot" style="background:var(--yellow)"></span>Queue (${openTab.filter(t=>urgency(t)==='yellow').length})</button>
-            <button type="button" data-st="green" class="${stT==='green'?'on':''}"><span class="st-dot" style="background:var(--green)"></span>Completed (${completedAll.length})</button>
+            <button type="button" data-st="red" class="${stT==='red'?'on':''}" title="Priority"><span class="st-dot" style="background:var(--red)"></span><span class="st-full">Priority</span><span class="st-mini">P</span> (${openTab.filter(t=>urgency(t)==='red').length})</button>
+            <button type="button" data-st="yellow" class="${stT==='yellow'?'on':''}" title="Queue"><span class="st-dot" style="background:var(--yellow)"></span><span class="st-full">Queue</span><span class="st-mini">Q</span> (${openTab.filter(t=>urgency(t)==='yellow').length})</button>
+            <button type="button" data-st="green" class="${stT==='green'?'on':''}" title="Completed"><span class="st-dot" style="background:var(--green)"></span><span class="st-full">Completed</span><span class="st-mini">C</span> (${completedAll.length})</button>
           </div>
           <div class="tt-tabs">
             <button type="button" data-tt="adhoc" class="${taskTab==='adhoc'?'on':''}">Ad hoc (${open.filter(t=>!isReg(t)).length})</button>
@@ -2336,6 +2343,7 @@ document.addEventListener("paste", async e=>{
   const t = document.activeElement;
   if (!t || !t.classList || !t.classList.contains("rich-target")) return;
   if ($("taskPanel").classList.contains("open")) return; // task editor handles its own attachments
+  if (pasteHasText(e.clipboardData)) return; // Word copies carry an image preview too — keep the text
   const files = [...((e.clipboardData||{}).files||[])];
   if (!files.length) return;
   e.preventDefault();
@@ -2927,6 +2935,12 @@ function sanitizeHtml(html){
   });
   return div.innerHTML;
 }
+/* Word/Office pastes carry an image render of the text alongside the text itself.
+   If real text is on the clipboard, the text is what the user wants. */
+function pasteHasText(cd){
+  try{ return !!(cd && (((cd.getData("text/plain")||"").trim()) || ((cd.getData("text/html")||"").trim()))); }
+  catch(_){ return false; }
+}
 /* Standardise pasted content like Apple Notes: our font, our background —
    keep bold / italic / underline / strikethrough, links, lists, headings,
    checklists and our own highlight colours; drop everything else. */
@@ -2955,7 +2969,7 @@ document.addEventListener("paste", e=>{
   const t=document.activeElement;
   if (!t || !t.classList || !t.classList.contains("rich-target")) return;
   const cd=e.clipboardData; if(!cd) return;
-  if ([...(cd.files||[])].length) return;              // file pastes handled elsewhere
+  if ([...(cd.files||[])].length && !pasteHasText(cd)) return; // pure file pastes handled elsewhere
   const html=cd.getData("text/html"); if(!html) return; // plain text pastes are already clean
   e.preventDefault();
   document.execCommand("insertHTML", false, cleanPaste(html));
@@ -3248,6 +3262,7 @@ $("recBtn").oncontextmenu=async ev=>{
 /* Paste an image/file anywhere in the open task window → attaches */
 document.addEventListener("paste", e=>{
   if(!editing || !$("taskPanel").classList.contains("open")) return;
+  if (pasteHasText(e.clipboardData)) return; // Word & co. put an image copy alongside text — the text wins
   const fs=[...((e.clipboardData||{}).files||[])];
   if(fs.length){ e.preventDefault(); addFiles(fs); }
 });
@@ -3255,6 +3270,7 @@ document.addEventListener("paste", e=>{
 document.addEventListener("paste", e=>{
   if (view!=="profile" || profileTab!=="docs" || !profileEmp) return;
   if ($("taskPanel").classList.contains("open") || $("neOverlay").classList.contains("open")) return;
+  if (pasteHasText(e.clipboardData)) return;
   const fs=[...((e.clipboardData||{}).files||[])];
   if(!fs.length) return;
   e.preventDefault();
