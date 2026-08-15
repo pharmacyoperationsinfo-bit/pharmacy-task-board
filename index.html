@@ -1894,7 +1894,9 @@ function wire(c){
     tfb.onclick=()=>{ const el=document.querySelector(".np-tasks"); if (el) el.style.animation="";
       document.body.classList.remove("np-full"); document.body.classList.toggle("tasks-full"); tlabel();
       if (document.body.classList.contains("tasks-full")){
-        const s=$("npTaskSearch"); if (s){ s.focus(); s.select(); } } };
+        const s=$("npTaskSearch"); if (s){ s.focus(); s.select(); }
+        requestAnimationFrame(()=>{ const s2=$("npTaskSearch"); if (s2 && document.activeElement!==s2){ s2.focus(); s2.select(); } });
+      } };
     tlabel();
   }
   const tsi=c.querySelector("#npTaskSearch");
@@ -3606,7 +3608,12 @@ document.addEventListener("keydown", e=>{
   if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey){
     if (e.code==="KeyN"){ e.preventDefault(); if (!anyOpen) newTask(); return; }
     if (e.code==="KeyH"){ e.preventDefault(); if (!anyOpen){ const b=$("npFullBtn"); if (b) b.click(); } return; }
-    if (e.code==="KeyT"){ e.preventDefault(); if (!anyOpen){ const b=$("tasksFullBtn"); if (b) b.click(); } return; }
+    if (e.code==="KeyT"){ e.preventDefault(); if (!anyOpen){
+      if (document.body.classList.contains("tasks-full")){
+        // already on the tiles — Ctrl+T just puts the cursor in search (Esc exits)
+        const s=$("npTaskSearch"); if (s){ s.focus(); s.select(); }
+      } else { const b=$("tasksFullBtn"); if (b) b.click(); }
+    } return; }
   }
   if (!typing && !anyOpen && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key==="n" || e.key==="N")){
     e.preventDefault(); newTask();
