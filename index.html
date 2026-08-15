@@ -123,7 +123,10 @@
   .card:hover{box-shadow:0 2px 8px rgba(11,11,11,0.09);}
   .card.amber{border-left-color:var(--amber);} .card.yellow{border-left-color:var(--yellow);}
   .card.green{border-left-color:var(--green);} .card.red{border-left-color:var(--red);}
-  .card .c-title{font-weight:600; font-size:13.5px; margin-bottom:5px; padding-right:84px;} /* keep clear of pin/work/done buttons */
+  .card .c-title{font-weight:600; font-size:13.5px; margin-bottom:5px;}
+  /* invisible spacer floated top-right: only the FIRST line of the title makes room
+     for the pin/work/done buttons — the rest of the text uses the full width */
+  .card .c-btnspace{float:right; width:76px; height:24px;}
   .card.done .c-title{text-decoration:line-through; color:var(--ink-2);}
   .card .c-meta{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11.5px; color:var(--muted);}
   .card .c-done{position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%;
@@ -1119,6 +1122,7 @@ function cardHTML(t, opts){
     ${t.status!=='green'?`<button class="c-pin ${t.pinned?'on':''}" data-pin="${t.id}" title="${t.pinned?'Unpin':'Pin to top'}">📌</button>`:''}
     ${t.status!=='green'?`<button class="c-work ${t.working?'on':''}" data-work="${t.id}" title="${t.working?'Working on it — click to pause':'I’m working on this'}">⚙</button>`:''}
     <button class="c-done" data-done="${t.id}" title="${t.status==='green'?'Reopen':'Mark completed'}">✓</button>
+    <div class="c-btnspace"></div>
     <div class="c-title">${esc(t.title)}</div>
     <div class="c-meta">
       ${!opts.hideOwner ? (e?`<span class="who"><span class="avatar" style="width:20px;height:20px;font-size:9px;background:${avColor(e)}">${initials(e.full_name)}</span>${esc(e.full_name.split(" ")[0])}</span>`:'<span class="badge">Unassigned</span>') : ""}
