@@ -354,7 +354,7 @@
     background:rgba(255,255,255,.6); cursor:pointer;}
   .dn-actions button:hover{background:#fff;}
   .dn-actions button.danger{color:#a02020;}
-  #unsavedOverlay .btn:focus{outline:2px dashed var(--ink); outline-offset:3px;}
+  #unsavedOverlay .btn:focus, #delOverlay .btn:focus{outline:2px dashed var(--ink); outline-offset:3px;}
   .overlay{position:fixed; inset:0; background:rgba(11,11,11,0.35); display:none; align-items:flex-start;
     justify-content:center; padding:8vh 16px; z-index:310; overflow:auto;}
   .overlay.open{display:flex;}
@@ -766,6 +766,16 @@
     </div>
   </div>
 </div>
+<div class="overlay" id="delOverlay" style="z-index:400;">
+  <div class="modal" style="width:410px;">
+    <h3 style="margin:0 0 6px;">🗑 Delete this task?</h3>
+    <p style="font-size:13px;color:var(--ink-2);margin:0 0 16px;">“<span id="delTaskName" style="font-weight:600;color:var(--ink);"></span>” will be permanently deleted for everyone — including its notes, checklist and attachments. This can’t be undone.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn ghost" id="delKeep">↩ Keep task</button>
+      <button class="btn danger" id="delYes">Delete forever</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="dnOverlay">
   <div class="modal" style="width:700px;">
     <h3 style="margin:0 0 2px;">✓ Completed sticky notes — <span id="dnWho"></span></h3>
@@ -1111,10 +1121,13 @@ function taskSearchBlob(t){
 function applyTaskSearch(){
   const wrap = document.getElementById("npTasks"); if (!wrap) return;
   const q = (taskSearch||"").trim().toLowerCase();
+  // every word has to appear SOMEWHERE, in any order — "ma smp" finds "ma v smp"
+  const words = q.split(/\s+/).filter(Boolean);
   let shown = 0;
   wrap.querySelectorAll(".card").forEach(c=>{
     const t = tasks.find(x=>x.id===c.dataset.id);
-    const hit = !q || (t && taskSearchBlob(t).includes(q));
+    const blob = t ? taskSearchBlob(t) : "";
+    const hit = !words.length || (t && words.every(w=>blob.includes(w)));
     c.style.display = hit ? "" : "none";
     if (hit) shown++;
   });
@@ -3398,12 +3411,34 @@ $("mSave").onclick=async ()=>{
     loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t save — check connection"); }
 };
-$("mDelete").onclick=async ()=>{
+/* Delete asks first — same forced-warning style as Escape, safe default on Keep */
+$("mDelete").onclick=()=>{
+  if(!editing || editing._new) return;
+  $("delTaskName").textContent = $("mTitle").value || editing.title || "Untitled task";
+  $("delOverlay").classList.add("open");
+  // dotted highlight lands on Delete — Enter confirms, Tab moves to Keep, Esc backs out
+  setTimeout(()=>{ const b=$("delYes"); if (b) b.focus(); }, 0);
+};
+$("delOverlay").addEventListener("keydown", e=>{
+  const order=[$("delKeep"), $("delYes")];
+  if (e.key==="Tab"){
+    e.preventDefault();
+    const i = order.indexOf(document.activeElement);
+    const n = e.shiftKey ? (i<=0 ? order.length-1 : i-1) : (i<0 || i===order.length-1 ? 0 : i+1);
+    order[n].focus();
+  } else if (e.key==="Escape"){
+    e.preventDefault(); e.stopPropagation();
+    $("delOverlay").classList.remove("open");
+  }
+});
+$("delKeep").onclick=()=>$("delOverlay").classList.remove("open");
+$("delYes").onclick=async ()=>{
+  $("delOverlay").classList.remove("open");
   if(!editing || editing._new) return;
   try{
     await api(`/tb_tasks?id=eq.${editing.id}`, {method:"DELETE"});
     await logActivity("deleted", editing);
-    closeTask(); toast("Task deleted");
+    closeTask(true); toast("Task deleted");
     await loadAll(true);
   }catch(e){ console.error(e); setOnline(false); toast("Couldn’t delete — check connection"); }
 };
@@ -3553,7 +3588,7 @@ document.addEventListener("keydown", e=>{
   }
   if (e.key==="Escape"){
     if ($("neOverlay").classList.contains("open")){ closeNoteEditor(); return; }
-    const anyOpen = ["taskPanel","neOverlay","unsavedOverlay","rtOverlay","empOverlay","dnOverlay"]
+    const anyOpen = ["taskPanel","neOverlay","unsavedOverlay","delOverlay","rtOverlay","empOverlay","dnOverlay"]
       .some(id=>{ const el=$(id); return el && el.classList.contains("open"); })
       || $("lightbox").classList.contains("open");
     closeTask(); $("empOverlay").classList.remove("open"); $("rtOverlay").classList.remove("open"); $("lightbox").classList.remove("open");
@@ -3656,7 +3691,7 @@ $("dnOverlay").addEventListener("click", e=>{ if(e.target.id==="dnOverlay") $("d
 document.addEventListener("keydown", e=>{
   const t = document.activeElement;
   const typing = t && (t.tagName==="INPUT" || t.tagName==="TEXTAREA" || t.tagName==="SELECT" || t.isContentEditable);
-  const anyOpen = ["taskPanel","neOverlay","unsavedOverlay","rtOverlay","empOverlay","dnOverlay"]
+  const anyOpen = ["taskPanel","neOverlay","unsavedOverlay","delOverlay","rtOverlay","empOverlay","dnOverlay"]
     .some(id=>{ const el=$(id); return el && el.classList.contains("open"); });
   const newTask = ()=>openTask(null, view==="profile" && profileEmp ? {employee_id:profileEmp} : null);
   if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey){
